@@ -33,7 +33,7 @@ Every `.py` file compiles and every project's synthetic-data test suite passes (
 
 ## Literature check
 
-`tools/litcheck.py` queries Europe PMC, PubMed, arXiv and Crossref (OpenAlex / Semantic Scholar when keys are set) with curated queries per project, scores papers by key-term coverage and walks the citation neighbourhood. Results: [`litcheck/SUMMARY.md`](litcheck/SUMMARY.md) (all 113 ranked by near-miss risk) and [`litcheck/VERDICTS.md`](litcheck/VERDICTS.md) (deep-read verdicts for the 29 highest-risk projects: 0 closed, 12 narrowed, 17 open). Re-run with `CROSSREF_MAILTO=you@example.org python tools/litcheck.py`.
+`tools/litcheck.py` queries Europe PMC, PubMed, arXiv and Crossref (OpenAlex / Semantic Scholar when keys are set) with curated queries per project, scores papers by key-term coverage and walks the citation neighbourhood. Results: [`litcheck/SUMMARY.md`](litcheck/SUMMARY.md) (all 113 ranked by near-miss risk) and [`litcheck/VERDICTS.md`](litcheck/VERDICTS.md) (deep-read verdicts for the 28 highest-risk projects: 0 closed, 11 narrowed, 17 open). Re-run with `CROSSREF_MAILTO=you@example.org python tools/litcheck.py`.
 
 ## Project index
 
