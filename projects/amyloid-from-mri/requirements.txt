@@ -1,0 +1,17 @@
+# Core (used by src/amyloid_mri and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # NITRC/XNAT REST downloads (scripts/download_data.py)
+
+# Imaging (optional; needed for the CNN arm and NIfTI handling)
+# nibabel>=5.2
+# monai>=1.3
+# torch>=2.2
+# antspyx>=0.4          # MNI registration for the CNN arm
+# neuroHarmonize>=2.3   # cross-check of the built-in ComBat

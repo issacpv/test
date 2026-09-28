@@ -1,0 +1,15 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+scikit-learn>=1.3
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# optional cross-checks of morphometrics
+# neurom>=3.2
+# morphopy>=0.7
+# optional Newick handling beyond the built-in parser
+# ete3>=3.1

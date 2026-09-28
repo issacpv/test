@@ -1,0 +1,13 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+wfdb>=4.1
+h5py>=3.10
+requests>=2.31
+tqdm>=4.66
+pytest>=7.4
+# optional deep-learning stack (only needed for ecg_xgen.models.ResNet1D)
+# torch>=2.1
+# optional survival analysis for MIMIC-IV-ECG outcome validation
+# lifelines>=0.28
