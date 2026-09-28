@@ -1,0 +1,49 @@
+# data & outputs are never committed
+**/data/*
+!**/data/README.md
+**/outputs/
+**/results/
+**/checkpoints/
+**/cache/
+
+# large biomedical formats
+*.nii
+*.nii.gz
+*.mgz
+*.edf
+*.bdf
+*.fif
+*.nwb
+*.h5
+*.hdf5
+*.zarr/
+*.dcm
+*.swc
+*.mat
+*.dat
+*.hea
+*.avi
+*.mp4
+*.parquet
+*.csv.gz
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+*.env
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
