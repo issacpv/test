@@ -1,5 +1,5 @@
 # Data and derived artefacts - never commit these
-data/
+data/*
 outputs/
 results/
 cache/
@@ -50,3 +50,4 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+!data/README.md

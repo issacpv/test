@@ -1,4 +1,4 @@
-data/
+data/*
 outputs/
 results/
 *.csv.gz
@@ -16,3 +16,4 @@ __pycache__/
 build/
 dist/
 .DS_Store
+!data/README.md

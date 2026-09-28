@@ -109,6 +109,50 @@ No credentialed data are involved.
 - Cite FDA CVM, openFDA and EMA VeDDRA; spontaneous-report caveats (no incidence, reporting biases) must be stated in any publication.
 - Never commit downloaded data (`data/` is git-ignored).
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                       # optional
+python scripts/download_data.py --sample          # ~500 dog/cat reports (one month) + demo FAERS counts
+PYTHONPATH=src pytest -q tests                    # synthetic-data tests (no network)
+```
+
+```python
+import pandas as pd
+from xspecies_pv import (assign_organ_system, normalize_ingredient, signal_table, concordance,
+                         permutation_null_rho, cumulative_ic_by_quarter, lead_lag, mg_per_kg)
+
+animal = pd.read_parquet("data/animal/flat/animal_events.parquet")
+dog = animal[animal["species"] == "Dog"].assign(
+    ingredient=lambda d: d["active_ingredient"].map(normalize_ingredient),
+    bucket=lambda d: d["veddra_term"].map(assign_organ_system))
+human = pd.read_parquet("outputs/faers_long.parquet").assign(     # report_id, ingredient, pt, quarter
+    bucket=lambda d: d["pt"].map(assign_organ_system))
+t_dog, t_hum = signal_table(dog), signal_table(human)
+res = concordance(t_dog, t_hum, min_a=3, n_boot=1000)
+print(res["rho"], res["rho_ci"], res["kappa"], permutation_null_rho(t_dog, t_hum)["p_value"])
+print(lead_lag(cumulative_ic_by_quarter(dog, "meloxicam", "gastrointestinal"),
+               cumulative_ic_by_quarter(human, "meloxicam", "gastrointestinal")))
+```
+
+## Pre-specified operational definitions
+
+| Item | Definition (frozen before signal tables are computed) |
+|---|---|
+| Shared ingredient | normalised active ingredient with >= 100 reports in the CVM database (dog or cat) and >= 100 primary-suspect FAERS reports, 2008-2025 |
+| Animal exposure | every active ingredient listed on the report (primary); first-listed only (sensitivity) |
+| Human exposure | primary suspect only (`drugcharacterization:1`) |
+| Reaction unit | harmonised organ-system bucket (22 classes, `ORGAN_SYSTEMS`); PT-level secondary analysis restricted to reviewed VeDDRA-MedDRA pairs |
+| Cell | ingredient x bucket, one count per distinct report; cells with a >= 3 in both species enter the concordance |
+| Signal | BCPNN IC025 > 0 and a >= 3 (Norén et al. 2013 shrinkage), computed against each species' own totals |
+| Concordance | Spearman rho on IC and Cohen's kappa on signal flags; ingredient-cluster bootstrap (1,000) and ingredient-label permutation (999) |
+| Positive controls (discordant) | cat-acetaminophen-haematological; dog-ivermectin-nervous; dog-NSAID-gastrointestinal (ulceration PTs); cat-permethrin-nervous |
+| Positive controls (concordant) | gabapentin-nervous (sedation/ataxia); insulin-endocrine_metabolic (hypoglycaemia); anticoagulant-cardiovascular (bleeding); levothyroxine-cardiovascular |
+| Lead-lag | first quarter of two consecutive IC025 > 0 quarters per species; difference in quarters; mechanism match from shared EPC class |
+| Dose analysis | mg/kg from `active_ingredients.dose` and `animal.weight` (unit whitelist); ratio to labelled mg/kg (Green Book); logistic model of `serious_ae` with ingredient random intercepts |
+| Exclusions (H6) | manufacturer-only reports; lack-of-efficacy reports; reports coded before VeDDRA v3; FAERS lawyer/literature reports |
+
 ## Related projects
 
 - `faers-reporting-bias` (reporter-type bias models reusable for the human side).

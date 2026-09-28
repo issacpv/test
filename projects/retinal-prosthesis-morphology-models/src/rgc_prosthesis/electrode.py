@@ -9,7 +9,10 @@ classic closed form, e.g. Wiley & Webster, 1982, IEEE TBME):
 with ``I`` the electrode current, ``sigma`` the conductivity and ``(r, z)`` cylindrical
 coordinates about the disk axis. Units here: current uA, lengths um, sigma S/m, potential mV
 (``V0_mV = 1e3 * I / (4 sigma a)`` with I in uA and a in um, because the 1e-6 factors cancel).
-A point source gives ``V = 1e3 * I / (4 pi sigma R)`` in the same units.
+A point source *in an infinite medium* gives ``V = 1e3 * I / (4 pi sigma R)`` in the same units;
+note that the disk formula above injects all current into a half-space, so its far field is
+``I / (2 pi sigma R)``, twice the infinite-medium point source (use ``2 x`` point source, or the
+disk with a small radius, for a half-space point electrode).
 
 Placement: an epiretinal electrode sits on the vitreal side at ``z_um < 0`` (retinal convention
 of :mod:`rgc_prosthesis.swc_morph`); a subretinal electrode sits beyond the dendrites at

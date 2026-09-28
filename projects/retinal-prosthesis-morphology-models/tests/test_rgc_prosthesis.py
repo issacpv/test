@@ -24,10 +24,10 @@ def test_disk_and_point_potentials():
     v_near = el.disk_electrode_potential(np.array([[0.0, 0.0, 0.0]]), centre, 50.0, 10.0)[0]
     v_far = el.disk_electrode_potential(np.array([[0.0, 0.0, 200.0]]), centre, 50.0, 10.0)[0]
     assert v_centre > v_near > v_far > 0
-    # far field of a disk approaches the point source with the same current
+    # far field of a disk on a half-space is I/(2 pi sigma R): twice the infinite-medium point source
     far = np.array([[0.0, 0.0, 5000.0]])
     assert el.disk_electrode_potential(far, centre, 50.0, 10.0)[0] == pytest.approx(
-        el.point_source_potential(far, centre, 10.0)[0], rel=0.01)
+        2 * el.point_source_potential(far, centre, 10.0)[0], rel=0.01)
     epi = el.Electrode.epiretinal(height_um=30, radius_um=50)
     sub = el.Electrode.subretinal(depth_um=150, radius_um=50)
     assert epi.centre_um[2] < 0 < sub.centre_um[2]
@@ -53,7 +53,7 @@ def test_synthetic_rgc_morphometrics_and_axon_synthesis():
     assert ax2["type"].value_counts()[sm.HILLOCK] == 12
     comp = sm.compartmentalize(ax, max_len_um=10.0)
     assert comp.n > 100
-    assert comp.length.max() <= 10.0 + 1e-9
+    assert comp.length[1:].max() <= 10.0 + 1e-9  # index 0 is the soma's single equivalent cylinder
     assert comp.parent[0] == -1 and (comp.parent[1:] >= 0).all() and (comp.parent[1:] < np.arange(1, comp.n)).all()
     assert set(np.unique(comp.region)) == {sm.SOMA, sm.BASAL, sm.HILLOCK, sm.AIS, sm.AXON}
     # orientation helper flips a cell whose dendrites point to negative z

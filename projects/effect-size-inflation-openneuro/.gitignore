@@ -1,4 +1,4 @@
-data/
+data/*
 outputs/
 *.nii
 *.nii.gz
@@ -12,3 +12,4 @@ __pycache__/
 .env
 .venv/
 *.egg-info/
+!data/README.md

@@ -1,4 +1,4 @@
-data/
+data/*
 outputs/
 models/
 *.csv.gz
@@ -14,3 +14,4 @@ __pycache__/
 .env
 .venv/
 *.egg-info/
+!data/README.md

@@ -388,7 +388,10 @@ class _Collector:
                 parent_assign[id(node.value)] = _assign_targets(node.target)
         for node in _iter_nodes_in_order(self.tree):
             if isinstance(node, ast.Call):
+                n_before = len(self.events)
                 self._visit_call(node, parent_assign.get(id(node), set()))
+                for ev in self.events[n_before:]:
+                    ev.scope = self.scope_of(node.lineno)
 
     # .................................................................... #
     def _kwargs(self, node: ast.Call) -> Dict[str, Set[str]]:
@@ -559,10 +562,10 @@ def _apply_rules(col: _Collector, subject_tokens: List[str], window_tokens: List
         # ignore fits on train-named arrays
         if ev.names and all(TRAIN_NAME_RE.search(n) for n in ev.names):
             return None
-        later = [s for s in splits if s.lineno > ev.lineno and (s.names & touched)]
+        # only compare order within the same function scope (or module level)
+        later = [s for s in splits if s.lineno > ev.lineno and s.scope == ev.scope and (s.names & touched)]
         if later:
             return min(later, key=lambda e: e.lineno)
-        # fit on a name that is later *reassigned* by a split (X = ...; X_train, X_test = train_test_split(X_s))
         return None
 
     seen_rules: Set[Tuple[str, int]] = set()
@@ -624,7 +627,7 @@ def _apply_rules(col: _Collector, subject_tokens: List[str], window_tokens: List
         efits = [e for e in events if e.kind == "efit" and e.names]
         evals = [e for e in events if e.kind in ("eval", "metric") and e.names]
         for ef in efits:
-            same = [ev for ev in evals if ev.lineno > ef.lineno and (ev.names & ef.names) and not any(_is_test_name(n) for n in ev.names)]
+            same = [ev for ev in evals if ev.lineno > ef.lineno and ev.scope == ef.scope and (ev.names & ef.names) and not any(_is_test_name(n) for n in ev.names)]
             if same:
                 findings.append(
                     Finding(

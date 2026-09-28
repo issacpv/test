@@ -114,6 +114,54 @@ No credentialed data are involved.
 - ASHP shortage pages are copyrighted; bulk extraction should follow their terms or use a data agreement.
 - Never commit downloaded data; `data/` is git-ignored. Pre-register the analysis to distinguish this work from the flood of low-quality FAERS disproportionality papers.
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample         # 100 shortage records + count series for 5 demo drugs
+PYTHONPATH=src pytest -q tests                   # synthetic-data tests (no network)
+```
+
+```python
+import pandas as pd
+from shortage_ae import (OpenFDAClient, build_faers_search, MEDICATION_ERROR_PTS, episodes_from_openfda,
+                         daily_counts_to_monthly, build_panel, callaway_santanna_att, aggregate_att)
+from shortage_ae.openfda_client import records_to_frame
+
+client = OpenFDAClient()
+episodes = episodes_from_openfda(records_to_frame(client.shortage_records()))
+months = pd.date_range("2012-01-01", "2025-06-01", freq="MS")
+counts = {}
+for drug in ["heparin", "norepinephrine", "lorazepam"]:
+    counts[drug] = {
+        "all": daily_counts_to_monthly(client.count_by_date("drug/event", build_faers_search(drug)), months),
+        "error": daily_counts_to_monthly(client.count_by_date("drug/event", build_faers_search(drug, MEDICATION_ERROR_PTS)), months),
+    }
+panel = build_panel(episodes, counts, months)
+att = callaway_santanna_att(panel, horizons=range(0, 13), n_boot=500)
+print(aggregate_att(att, range(0, 7)))           # IRR over months 0-6 after shortage onset
+```
+
+## Pre-specified operational definitions
+
+| Item | Definition (frozen before estimation) |
+|---|---|
+| Unit | ingredient (normalised generic name) x calendar month, 2012-01 to the last complete FAERS quarter |
+| Exposure onset | month of the earliest `initial_posting_date` across presentations of the ingredient on the FDA list; ASHP "first reported" date in the sensitivity list |
+| Exposure end | month of the last `update_date` with status Resolved when all presentations are resolved; else censored (still current) |
+| Index outcome | reports with the ingredient as primary suspect (`drugcharacterization:1`) and >= 1 PT in `MEDICATION_ERROR_PTS` |
+| Spillover outcome | same, for each substitute (same EPC class and route, from openFDA `drug/ndc`), with `DOSING_ERROR_PTS` |
+| Denominator | all primary-suspect reports of the ingredient in the month (`n_all`); Medicaid SDUD prescriptions in the sensitivity analysis |
+| Controls | never-shortage ingredients matched 2:1 on EPC class and median monthly report volume (2012-2015), excluding substitutes |
+| Estimator | Callaway-Sant'Anna group-time ATT on log rates with not-yet-treated controls, dynamic aggregation; TWFE Poisson event study as secondary |
+| Inference | drug-cluster bootstrap (999), placebo onset permutation (999), joint pre-trend Wald test on leads -12..-2 |
+| Modifiers | injectable (presentation text), narrow-therapeutic-index list, listed shortage reason, therapeutic category, number of substitutes |
+| Minimum volume | median >= 20 primary-suspect reports/month over the pre-period for the main analysis; pooled rare-drug analysis otherwise |
+| Exclusions | reports with `primarysource.qualification` = lawyer; reports flagged as literature; duplicates by `safetyreportid` |
+
+Effect sizes are reported as IRRs with 95% CIs on both the log-rate (CS) and count (Poisson) scales, and every estimate is accompanied by its placebo-permutation p-value.
+
 ## Related projects
 
 - `faers-reporting-bias` (reporter-type and stimulated-reporting bias models; the interrupted-time-series helpers there are complementary to the staggered-DiD estimators here).

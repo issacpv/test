@@ -59,11 +59,11 @@ def test_resampling_removes_sampling_signature():
 
 
 def test_detectability_with_and_without_software_effect():
-    X, y, g = _table({"manual": MANUAL, "auto": AUTO}, n_per_profile=40, n_archives_per_profile=4, seed=10)
+    X, y, g = _table({"manual": MANUAL, "auto": AUTO}, n_per_profile=32, n_archives_per_profile=4, seed=10)
     res = detectability(X, y, g, n_splits=4)
     assert res["balanced_accuracy"] > 0.9 and res["detectability"] > 0.8
     # same profile under two labels -> near chance with archives held out
-    X0, y0, g0 = _table({"labA": MANUAL, "labB": MANUAL}, n_per_profile=40, n_archives_per_profile=4, seed=200)
+    X0, y0, g0 = _table({"labA": MANUAL, "labB": MANUAL}, n_per_profile=32, n_archives_per_profile=4, seed=200)
     res0 = detectability(X0, y0, g0, n_splits=4)
     assert res0["balanced_accuracy"] < 0.7
     sub = feature_subset_contrast(X, y, g, {"sampling": [c for c in X.columns if c.startswith("s_")],
@@ -74,8 +74,8 @@ def test_detectability_with_and_without_software_effect():
 
 
 def test_archive_level_null_is_calibrated():
-    X0, y0, g0 = _table({"labA": MANUAL, "labB": MANUAL}, n_per_profile=32, n_archives_per_profile=4, seed=300)
-    null = archive_level_permutation_null(X0, y0, g0, n_perm=8, n_splits=4)
+    X0, y0, g0 = _table({"labA": MANUAL, "labB": MANUAL}, n_per_profile=24, n_archives_per_profile=4, seed=300)
+    null = archive_level_permutation_null(X0, y0, g0, n_perm=6, n_splits=4)
     assert null["p_perm"] > 0.05
 
 

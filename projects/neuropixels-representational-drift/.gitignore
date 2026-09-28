@@ -1,5 +1,5 @@
 # data and outputs
-data/
+data/*
 !data/README.md
 outputs/
 results/

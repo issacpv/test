@@ -87,4 +87,7 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:  # e.g. `python -m leakscan scan . | head`
+        sys.exit(0)

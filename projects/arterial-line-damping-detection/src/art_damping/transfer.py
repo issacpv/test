@@ -67,9 +67,11 @@ class SyntheticABP:
     fs: float
 
 
-def ejection_profile(t_ej: float, fs: float, t_peak_frac: float = 0.25, backflow_frac: float = 0.06) -> np.ndarray:
-    """Unit-area aortic flow pulse: fast skewed rise (gamma-like) to a peak at ``t_peak_frac * t_ej`` followed
-    by a decay, then a short negative lobe (valve-closure backflow) that produces the dicrotic notch.
+def ejection_profile(t_ej: float, fs: float, t_peak_frac: float = 0.06, sharpness: float = 1.0,
+                     backflow_frac: float = 0.06) -> np.ndarray:
+    """Unit-area aortic flow pulse: fast skewed rise (gamma-like, exponent ``sharpness``) to a peak at
+    ``t_peak_frac * t_ej`` followed by a decay, then a short negative lobe (valve-closure backflow)
+    that produces the dicrotic notch.
 
     A fast upstroke is essential: it is the high-frequency content of the pulse that a resonant
     (under-damped) catheter system amplifies.
@@ -77,7 +79,7 @@ def ejection_profile(t_ej: float, fs: float, t_peak_frac: float = 0.25, backflow
     n = max(4, int(round(t_ej * fs)))
     tau = np.arange(n) / n
     tp = t_peak_frac
-    k = 2.0
+    k = sharpness
     pos = (tau / tp) ** k * np.exp(k * (1 - tau / tp))
     n_back = max(2, int(round(0.08 * n)))
     back = -backflow_frac * np.sin(np.pi * np.arange(n_back) / n_back)
@@ -86,7 +88,8 @@ def ejection_profile(t_ej: float, fs: float, t_peak_frac: float = 0.25, backflow
 
 
 def synthetic_true_abp(fs: float = 125.0, n_beats: int = 40, hr: float = 75.0, sv_ml: float = 70.0,
-                       R: float = 1.0, C: float = 1.5, noise_mmhg: float = 0.3, seed: int = 0) -> SyntheticABP:
+                       R: float = 1.0, C: float = 1.5, noise_mmhg: float = 0.3, seed: int = 0,
+                       t_peak_frac: float = 0.06, sharpness: float = 1.0) -> SyntheticABP:
     """Intra-arterial ('true') pressure from a two-element Windkessel driven by ``ejection_profile``."""
     rng = np.random.default_rng(seed)
     dt = 1.0 / fs
@@ -96,7 +99,7 @@ def synthetic_true_abp(fs: float = 125.0, n_beats: int = 40, hr: float = 75.0, s
     n = int(np.ceil((onset_times[-1] + rr + 0.5) * fs))
     t = np.arange(n) / fs
     q = np.zeros(n)
-    prof = ejection_profile(t_ej, fs)
+    prof = ejection_profile(t_ej, fs, t_peak_frac, sharpness)
     for t0 in onset_times:
         sv = sv_ml * (1 + 0.05 * rng.normal())
         i0 = int(round(t0 * fs))

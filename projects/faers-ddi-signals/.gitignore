@@ -1,5 +1,5 @@
 # data and outputs (never commit FAERS extracts)
-data/
+data/*
 !data/README.md
 outputs/
 results/

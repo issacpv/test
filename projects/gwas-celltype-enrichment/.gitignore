@@ -1,4 +1,4 @@
-data/
+data/*
 outputs/
 results/
 *.h5ad
@@ -21,3 +21,4 @@ __pycache__/
 build/
 dist/
 .DS_Store
+!data/README.md

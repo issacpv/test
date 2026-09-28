@@ -66,15 +66,21 @@ def orientation_selectivity(mean_rates: np.ndarray, directions_deg: np.ndarray) 
     dsi = float(np.abs(np.sum(r * np.exp(1j * th))) / s)
     pref_dir = float(np.rad2deg(np.angle(np.sum(r * np.exp(1j * th)))) % 360)
     pref_ori = float((np.rad2deg(np.angle(np.sum(r * np.exp(2j * th)))) / 2.0) % 180)
-    # ratio OSI on the sampled directions closest to pref and pref+90
+    # ratio OSI/DSI on the sampled directions: pref = max response; orth = mean of the sampled directions
+    # nearest to pref +/- 90 deg; null = nearest to pref + 180 deg
     dirs = np.rad2deg(th) % 360
-    i_pref = int(np.argmin(np.abs(np.angle(np.exp(1j * np.deg2rad(dirs - pref_dir))))))
-    orth = (dirs[i_pref] + 90.0) % 360
-    i_orth = np.argsort(np.abs(np.angle(np.exp(1j * np.deg2rad(dirs - orth)))))[:2]
-    r_orth = r[i_orth].mean()
-    r_pref = r[i_pref]
+    i_pref = int(np.argmax(r))
+
+    def _nearest(target: float) -> float:
+        return float(r[int(np.argmin(np.abs(np.angle(np.exp(1j * np.deg2rad(dirs - target))))))])
+
+    r_pref = float(r[i_pref])
+    r_orth = 0.5 * (_nearest(dirs[i_pref] + 90.0) + _nearest(dirs[i_pref] - 90.0))
+    r_null = _nearest(dirs[i_pref] + 180.0)
     osi_ratio = float((r_pref - r_orth) / (r_pref + r_orth)) if (r_pref + r_orth) > 0 else np.nan
-    return {"osi_vec": osi, "dsi_vec": dsi, "osi_ratio": osi_ratio, "pref_dir_deg": pref_dir, "pref_ori_deg": pref_ori}
+    dsi_ratio = float((r_pref - r_null) / (r_pref + r_null)) if (r_pref + r_null) > 0 else np.nan
+    return {"osi_vec": osi, "dsi_vec": dsi, "osi_ratio": osi_ratio, "dsi_ratio": dsi_ratio,
+            "pref_dir_deg": pref_dir, "pref_ori_deg": pref_ori}
 
 
 def noise_correlations(counts: np.ndarray, conditions: np.ndarray) -> Dict[str, float]:

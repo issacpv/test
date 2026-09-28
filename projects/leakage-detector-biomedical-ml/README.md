@@ -89,6 +89,44 @@ Tools: Python `ast`, `pandas`, `requests`; `statsmodels` (optional) for the regr
 - **Re-execution failures** (missing dependencies, hard-coded paths). Mitigation: report the failure rate as a finding; patch only the splitter and paths; publish diffs.
 - **Ethics of naming.** Aggregate reporting; repositories anonymised in tables; authors of re-executed repos contacted before publication.
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests                                   # 24 tests: rules on snippets, notebooks, reports
+PYTHONPATH=src python -m leakscan scan path/to/repo --md report.md         # scan scripts + notebooks
+PYTHONPATH=src python -m leakscan scan analysis.ipynb --subject-level --fail-on-findings   # CI gate
+python scripts/download_data.py --dataset chbmit --sample                  # GitHub repository discovery
+PYTHONPATH=src python -m leakscan audit data/corpus/chbmit_repos.csv --out outputs/chbmit/findings.csv
+```
+
+Dogfooding note: run on the sibling `unified-biomedical-shift-benchmark`, the scanner found one real pattern (a scaler fitted on pooled data before `cross_val_predict` in a domain classifier; fixed there with a `Pipeline`) and one false positive (`fit` and `predict` in different methods of a wrapper class), which motivated function-scope tracking for the order-based rules. Both cases are now unit tests.
+
+## Repository layout
+
+```
+src/leakscan/
+  detector.py    AST event collector (splits, transformer/estimator fits, evaluations, metrics) + rules + severity grading
+  notebooks.py   .ipynb -> source with cell/line map; magics blanked; per-cell fallback on SyntaxError
+  report.py      long-format findings, per-repo rule flags, Wilson-CI prevalence tables, Markdown report
+  corpus.py      GitHub search (pagination, rate limits), Semantic Scholar citations, GitHub-link mining, shallow clones
+  __main__.py    CLI: scan / audit
+scripts/download_data.py   corpus builder (repository search, code search, citation mining, cloning)
+tests/test_detector.py     positive and negative snippets per rule; notebook ordering; report aggregation
+data/README.md             corpus layout, annotation protocol, ground-truth construction
+```
+
+## Analysis plan
+
+| RQ | Unit | Estimand / statistic | Data | Test / model |
+|---|---|---|---|---|
+| RQ1 validity | file, rule | precision, recall, F1 with Wilson CIs; error taxonomy | mutation corpus (exact labels); 100 annotated repos | McNemar vs Yang et al. (2022) on shared classes |
+| RQ2 prevalence | repository | share flagged per rule and dataset, Wilson CIs | full corpus | logistic regression on dataset, year, notebook, stars, paper-linked |
+| RQ3 co-occurrence | repository | OR of preprocessing leakage given group leakage; notebook vs script OR | full corpus | logistic regression; Fisher exact as check |
+| RQ4 inflation | paper-linked repository | difference in reported headline metric, flagged vs not | `paper_repo_links.csv` | linear model with dataset, year, model family, evaluation unit; robust SEs; permutation of the flag |
+| RQ5 dynamic confirmation | re-executed repository | metric before vs after switching to subject-wise splits | 20 CHB-MIT + 10 PTB-XL repos | paired bootstrap; relation to parameter count |
+| RQ6 trend | repository x year | prevalence by year | full corpus | logistic regression with year spline; change-point at 2022 |
+
 ## Milestones
 
 - [ ] Freeze rule set v1 and vocabulary; build the mutation corpus; precision/recall per rule.

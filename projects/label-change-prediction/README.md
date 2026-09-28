@@ -111,6 +111,56 @@ No credentialed clinical data are involved.
 - Cite FDA SrLC, DailyMed/NLM and openFDA; follow DailyMed's request-rate guidance.
 - Never commit downloaded labels, counts or derived pair tables (`data/` is git-ignored).
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                       # optional
+python scripts/download_data.py --sample          # DailyMed histories + a few FAERS count series
+PYTHONPATH=src pytest -q tests                    # synthetic-data tests (no network)
+```
+
+```python
+import pandas as pd
+from label_change import (DailyMedClient, extract_sections, new_terms, parse_srlc_export, OpenFDACounts,
+                          cumulative_2x2, quarter_index, build_landmark_dataset, fit_pooled_logistic,
+                          grouped_cv_auc, lead_times)
+from label_change.openfda_counts import search_clause, daily_to_quarterly
+
+# 1. label events: SrLC export (+ DailyMed diffs for validation)
+srlc = parse_srlc_export("data/srlc/srlc_export.csv", vocabulary=pt_names)      # pt_names: list of MedDRA PTs
+events = {f"{r.drug}|{pt}": quarter_index(r.quarter) for r in srlc.itertuples() for pt in r.terms
+          if r.section in ("boxed_warning", "warnings_and_precautions")}
+# 2. FAERS pair-quarter tables
+c = OpenFDACounts()
+q = lambda s: daily_to_quarterly(c.daily_counts(s, start, end)).rename(index=quarter_index)
+N = q("")
+tables = {}
+for drug, pt in pairs:
+    tables[f"{drug}|{pt}"] = cumulative_2x2(q(search_clause(drug, pt)), q(search_clause(drug)), q(search_clause(pt=pt)), N,
+                                            quarters=range(0, quarter_index("2025Q2") + 1))
+# 3. landmark dataset and model
+ds = build_landmark_dataset(tables, pd.Series(events), landmarks=range(16, 84, 2), horizon=8, last_quarter=85)
+print(grouped_cv_auc(ds)["auc_pooled"], lead_times(tables, pd.Series(events))["lead_quarters"].describe())
+```
+
+## Pre-specified operational definitions
+
+| Item | Definition (frozen before modelling) |
+|---|---|
+| Pair | (ingredient as primary suspect, MedDRA PT); ingredients with an SrLC entry 2016-2025 plus 2:1 volume-matched ingredients without one |
+| Event | first quarter in which the PT (or an LLT mapping to it) appears in the Boxed Warning or Warnings and Precautions section; SrLC approval date primary, DailyMed effective date secondary |
+| Already labelled | PT present in the earliest available SPL version (or in the approval label from Drugs@FDA); such pairs are excluded from the risk set |
+| Landmarks | every second quarter from 2008Q1 to 2023Q4; horizon h in {2, 4, 8} quarters (primary h = 8) |
+| Risk set at L | pairs with >= 3 cumulative reports by `receivedate` <= end of L and no event <= L |
+| Features at L | IC, IC025, 4- and 8-quarter IC slopes, consecutive positive quarters, log cumulative reports, recent-4-quarter share, log ROR lower CI, drug age (quarters since approval), serious share, HCP share, class-warning flag; nothing dated after L |
+| Models | pooled logistic with quadratic landmark terms (primary); HistGradientBoosting (secondary); baselines: IC025 at L alone, drug age alone |
+| Validation | 5-fold grouped CV by ingredient; temporal split at 2019Q4; bootstrap CIs clustered by ingredient |
+| Metrics | time-dependent AUC (h = 8, then 2 and 4), Brier score, calibration slope/intercept, decision curve at 5-20% risk thresholds |
+| Lead time | event quarter minus the first quarter of two consecutive IC025 > 0 quarters (with >= 3 reports); reported by section and evidence source |
+| Notoriety | (post 4-quarter share) / (pre 4-quarter share) of the pair among the drug's reports; leaky-design AUC inflation reported alongside |
+| Null | permutation of event quarters within ingredient (999 draws) for the AUC null distribution |
+
 ## Related projects
 
 - `unlabeled-adverse-event-mining` (static label-vs-FAERS comparison; this project adds the time axis and the label-change outcome).

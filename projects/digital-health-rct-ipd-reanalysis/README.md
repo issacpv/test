@@ -92,6 +92,51 @@ Tools: `numpy`, `scipy`, `pandas`, `scikit-learn`, `requests`; `statsmodels` (op
 - **Secure environments restrict software.** Mitigation: the package depends only on numpy/scipy/pandas/scikit-learn/requests and is installed from source.
 - **Outcome scales differ** (PHQ-9, BDI, GAD-7). Mitigation: within-trial standardisation; RQ4/RQ5 report per trial before pooling.
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests                  # 8 tests: simulator, ITT/CACE/principal score, MI/J2R/tipping point, IECV, registry
+python scripts/download_data.py --sample                 # ClinicalTrials.gov v2: one term, one page -> data/registry/studies.csv
+python scripts/download_data.py --ipd-yes-only           # all digital terms, trials with IPD sharing = YES
+```
+
+The whole IPD pipeline on simulated data (what runs inside a secure environment once real IPD is harmonised):
+
+```python
+from dh_ipd import simulate_ipd, itt, naive_per_protocol, cace_wald, principal_score_effects, multiple_imputation, tipping_point, internal_external_cv
+d = simulate_ipd(n_trials=6, n_per_trial=400, seed=1)
+print(itt(d), naive_per_protocol(d), cace_wald(d))
+print(principal_score_effects(d, stratum="engaged"))
+print(multiple_imputation(d, method="j2r"), tipping_point(d).attrs["tipping_delta"])
+print(internal_external_cv(d, moderators=("baseline", "age")))
+```
+
+## Repository layout
+
+```
+src/dh_ipd/
+  registry.py     ClinicalTrials.gov v2 client (pagination), flatten_study, classify_repository, is_digital_intervention, sharing_summary
+  engagement.py   ANCOVA with HC0 SEs; itt; naive_per_protocol; cace_wald; principal_score_effects; cluster bootstrap
+  missing.py      complete_case; proper MI (MAR / jump-to-reference / delta); Rubin's rules; tipping_point
+  hte.py          centred interaction model; predict_benefit; internal_external_cv (calibration slope of predicted benefit)
+  simulate.py     multi-trial IPD with unobserved motivation, principal strata, MNAR dropout, effect modification
+scripts/download_data.py   registry builder
+tests/test_dh_ipd.py       recovers truths on simulated data; canned v2 JSON for the registry
+data/README.md             platforms, application workflow, tidy IPD schema
+```
+
+## Analysis plan
+
+| RQ | Unit | Estimand | Method | Pooling / inference |
+|---|---|---|---|---|
+| RQ1 retrievability | registered trial | P(IPD = Yes), P(named repository), P(findable) | registry extract + manual verification | logistic regression on sponsor class, enrolment, year; Wilson CIs |
+| RQ2 engagement effect | participant (per trial) | ITT; engager principal-stratum effect; naive contrasts | ANCOVA; Wald/CACE; principal-score weighting | cluster bootstrap; two-stage random-effects across trials |
+| RQ3 dose-response | participant | effects by dose tertile (principal strata) | multinomial principal score | trend test across strata; pooled |
+| RQ4 attrition | trial | ITT under MAR, J2R, delta grid; tipping delta | controlled MI + Rubin | share of trials losing significance; distribution of tipping deltas |
+| RQ5 HTE | held-out trial | calibration slope of predicted benefit | interaction model; internal-external CV | inverse-variance pooled slope with CI; causal forest in the same loop |
+| RQ6 early telemetry | participant | AUROC of 14-day features for response | logistic model | within-trial CV vs leave-one-trial-out |
+
 ## Milestones
 
 - [ ] Registry extract (`scripts/download_data.py`), manual screening of the digital flag, repository verification; RQ1 analysis and pre-print.

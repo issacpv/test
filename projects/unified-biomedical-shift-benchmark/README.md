@@ -96,6 +96,50 @@ Tools: `numpy`, `scipy`, `pandas`, `scikit-learn`; `statsmodels` (mixed models);
 - **The decomposition is not unique when shifts interact** (see the Brier example in the tests). Mitigation: report both orderings, Shapley average and ESS; treat components as descriptive.
 - **Sibling pipelines evolve.** Mitigation: the cache contract is versioned; each cache file records the sibling commit hash in `meta`.
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests                      # 11 tests: registry, metrics, diagnostics, harness on synthetic data
+PYTHONPATH=src python scripts/download_data.py --dry-run      # one cell per task on synthetic domains -> outputs/dry_run/leaderboard.csv
+python scripts/download_data.py --domain ptbxl --sample       # open data; see data/README.md for the rest
+PYTHONPATH=src python -c "from bioshift import default_benchmark; from bioshift.spec import cell_table; print(cell_table(default_benchmark()).groupby('modality').size())"
+```
+
+Plugging in a real modality: export `data/cache/<task>/<domain>.npz` (+ `_meta.csv`) from the sibling project, run `--make-manifests`, then
+
+```python
+from bioshift import ManifestAdapter, default_benchmark, run_benchmark, leaderboard
+b = default_benchmark()
+res = run_benchmark(b, ManifestAdapter(".", b), cells=b.cells_for(modality="ecg"), n_boot=500, model_name="resnet1d-emb")
+leaderboard(res).to_csv("outputs/ecg_leaderboard.csv", index=False)
+```
+
+## Repository layout
+
+```
+src/bioshift/
+  spec.py         TaskSpec / DomainSpec / ShiftCell / Benchmark; default_benchmark() = 6 tasks, 17 domains, 69 cells; JSON I/O; cell_table()
+  adapters.py     DomainData; SyntheticAdapter (controllable covariate/label/concept shift); ManifestAdapter; write_split_manifest()
+  metrics.py      AUROC/AUPRC/Brier/log-loss; calibration intercept & slope (Newton); ECE; multilabel; regression + coverage; event scoring; subgroup gaps; group bootstrap
+  diagnostics.py  group-aware domain-classifier AUC; MMD (permutation); BBSE; importance weights; Shapley-averaged gap decomposition
+  harness.py      Model protocol; run_cell / run_benchmark; leaderboard; axis_summary; shift_loss_regression; negative_control
+manifests/        fixed group-level splits (identifiers only; committed)
+scripts/download_data.py   open downloads (--sample), credentialed stubs, manifest builder, --dry-run
+tests/test_bioshift.py     synthetic end-to-end for all four task types + controls
+```
+
+## Analysis plan
+
+| Hypothesis | Unit | Outcome | Model / test | Control |
+|---|---|---|---|---|
+| H1 calibration first | cell | 1[|intercept| outside in-domain CI] vs 1[AUROC drop outside CI] | mixed logistic, modality random intercept | negative-control halves (both ~0) |
+| H2 population > device | cell | standardised primary gap | mixed linear, axis indicators, modality random slopes | partial contrasts (Chapman/Ningbo; EchoNet adult/pediatric) |
+| H3 diagnostics predict loss | cell | primary gap ~ domain AUC | Spearman pooled; mixed model with modality random slope | synthetic cells with known shift |
+| H4 subgroup gaps widen | cell x subgroup | gap(target) - gap(source) | paired bootstrap; after label-shift reweighting | permuted subgroup labels |
+| H5 no universal method | cell x method | delta vs ERM | paired bootstrap; count of modalities with CI-excluding gains | ERM re-runs across seeds |
+| H6 contamination | FM cell | gap(contaminated) - gap(clean) | mixed model with model random effect | supervised baselines (no pre-training) |
+
 ## Milestones
 
 - [ ] Freeze registry v0 (`default_benchmark`) and JSON export; publish cell inventory.

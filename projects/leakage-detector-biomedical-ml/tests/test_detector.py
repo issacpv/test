@@ -224,6 +224,30 @@ def test_clean_pipeline_has_no_leakage_rules():
     assert leak == set()
 
 
+def test_fit_and_predict_in_different_methods_not_flagged():
+    src = """
+    class Wrapper:
+        def fit(self, X, y):
+            self.est.fit(X, y)
+            return self
+        def predict(self, X):
+            return self.est.predict_proba(X)[:, 1]
+    """
+    assert "no-holdout-evaluation" not in rules(src)
+
+
+def test_scaler_in_helper_function_and_split_elsewhere_not_ordered():
+    src = """
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+    def scale(X):
+        return StandardScaler().fit_transform(X)
+    def split(X, y):
+        return train_test_split(X, y)
+    """
+    assert "preprocess-before-split" not in rules(src)
+
+
 def test_syntax_error_reported_not_raised():
     res = scan_source("def broken(:\n  pass\n")
     assert res.parse_error is not None

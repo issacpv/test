@@ -89,6 +89,52 @@ Tools: `numpy`, `scipy`, `pandas`; `mne` + `mne-bids` for reading; `openneuro-py
 - **Small n per dataset (10-20).** Mitigation: participant-level bootstrap; power analysis on synthetic sessions; pooled mixed models with dataset effects; conclusions framed per dataset and pooled.
 - **Garden of forking paths in the multiverse itself.** Mitigation: the space is pre-registered and *complete* (all combinations run), not curated after seeing results.
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests                       # 8 tests on synthetic sessions (learning, IAF, agreement, artifacts, spec-curve test)
+python scripts/download_data.py --scan                         # OpenNeuro GraphQL: candidate EEG-NF datasets -> data/candidates.csv
+python scripts/download_data.py --dataset ds002338 --sample    # public S3 bucket over HTTPS
+```
+
+Minimal multiverse on one recording (numpy arrays from `mne`; see data/README.md):
+
+```python
+from nf_multiverse import build_specification_space, compute_feedback, reward_decisions, within_session_slope
+from nf_multiverse.learning import block_means
+specs = build_specification_space(max_specs=200)
+rows = []
+for s in specs:
+    fb = compute_feedback(eeg, ch_names, fs, s, target_channels=("Pz",), baseline=(0, 60))
+    res = within_session_slope(block_means(fb.times, fb.values, block_edges))
+    rows.append({"spec": s.name(), "slope": res["slope"], "p": res["p"], "reward_rate": reward_decisions(fb.values).mean()})
+```
+
+## Repository layout
+
+```
+src/nf_multiverse/
+  specs.py       FeedbackSpec (7 factors) and build_specification_space(); spec_table()
+  feedback.py    extract_target (none/CAR/Laplacian/mastoid), IAF, band_power_windows (welch/fft/hilbert/rms), normalisation, artifact handling, compute_feedback, reward_decisions, agreement_matrix
+  learning.py    block_means, within/session slopes, classify_learner, cohen_kappa, learner_agreement, specification_curve, specification_curve_test (joint sign-flip)
+  artifacts.py   artifact_regressors (EOG/EMG/RMS on the feedback grid), feedback_specificity (R^2), contingency (Spearman, MI, reward-target correlation)
+  synthetic.py   simulate_session: 1/f background, learning alpha oscillator, blinks, saccade steps, broadband EMG bursts
+scripts/download_data.py   OpenNeuro discovery (GraphQL) and download (S3 ListObjectsV2 over HTTPS)
+tests/test_nf_multiverse.py
+```
+
+## Analysis plan
+
+| Hypothesis | Unit | Statistic | Inference | Control |
+|---|---|---|---|---|
+| H1 decision agreement | spec pair x session | median pairwise agreement; factor decomposition | bootstrap over sessions; fractional-factorial ANOVA on agreement | agreement between identical specs = 1 |
+| H2 learner instability | participant x spec | pairwise kappa, unstable fraction, learner-rate range | bootstrap over participants | simulated sessions with known learners |
+| H3 specificity | participant x spec | R^2 of feedback on EOG/EMG/RMS regressors; rho(R^2, slope) | mixed model (participant, dataset) | Laplacian + threshold spec as low-artifact reference |
+| H4 direction robust, size fragile | dataset x band | specification curve; share positive; median | joint sign-flip permutation | beta control band; block-order shuffle |
+| H5 contingency predicts learning | participant | rho(contingency, slope) adjusted for baseline power | mixed model; Holm within family | learning_gain = 0 simulations |
+| H6 direction asymmetry | dataset | agreement in down- vs up-regulation protocols | bootstrap difference | simulated up/down sessions |
+
 ## Milestones
 
 - [ ] `--scan` OpenNeuro; screen candidates; freeze the dataset list and the pre-registration (OSF).
