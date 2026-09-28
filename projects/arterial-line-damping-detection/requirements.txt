@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+wfdb>=4.1
+requests>=2.31
+pytest>=7.4
+# VitalDB python API (optional; the REST fallback needs only requests)
+vitaldb>=1.4
+# optional: DuckDB for MIMIC chartevents / inputevents extraction
+# duckdb>=0.10

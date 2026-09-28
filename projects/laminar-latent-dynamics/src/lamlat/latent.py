@@ -36,7 +36,7 @@ def fa_cv_dimensionality(X: np.ndarray, dims: Iterable[int] = range(1, 11), n_fo
             break
         lls = []
         for tr, te in blocked_folds(len(X), n_folds):
-            fa = FactorAnalysis(n_components=d, max_iter=500).fit(X[tr])
+            fa = FactorAnalysis(n_components=d, max_iter=300, svd_method="lapack").fit(X[tr])
             lls.append(fa.score(X[te]))
         rows.append({"dim": int(d), "cv_loglik": float(np.mean(lls))})
     df = pd.DataFrame(rows)
@@ -47,7 +47,7 @@ def fa_cv_dimensionality(X: np.ndarray, dims: Iterable[int] = range(1, 11), n_fo
 def fa_subspace(X: np.ndarray, n_components: int) -> Dict[str, np.ndarray]:
     """Fit FA and return the orthonormalised loading subspace plus shared/private variance per unit."""
     X = np.asarray(X, dtype=float)
-    fa = FactorAnalysis(n_components=n_components, max_iter=500).fit(X)
+    fa = FactorAnalysis(n_components=n_components, max_iter=300, svd_method="lapack").fit(X)
     L = fa.components_.T                     # (n_units, k)
     shared = np.sum(L ** 2, axis=1)
     private = fa.noise_variance_
@@ -72,8 +72,8 @@ def cross_layer_overlap(X_a: np.ndarray, X_b: np.ndarray, k: int) -> float:
     the *temporal* latent trajectories: FA scores (n_time, k) of each population, and compute the overlap of the
     column spaces of the two score matrices (how much of the time course of A's latents is spanned by B's).
     """
-    fa_a = FactorAnalysis(n_components=k, max_iter=500).fit(np.asarray(X_a, dtype=float))
-    fa_b = FactorAnalysis(n_components=k, max_iter=500).fit(np.asarray(X_b, dtype=float))
+    fa_a = FactorAnalysis(n_components=k, max_iter=300, svd_method="lapack").fit(np.asarray(X_a, dtype=float))
+    fa_b = FactorAnalysis(n_components=k, max_iter=300, svd_method="lapack").fit(np.asarray(X_b, dtype=float))
     Za = fa_a.transform(np.asarray(X_a, dtype=float))
     Zb = fa_b.transform(np.asarray(X_b, dtype=float))
     return subspace_overlap(Za - Za.mean(axis=0), Zb - Zb.mean(axis=0))

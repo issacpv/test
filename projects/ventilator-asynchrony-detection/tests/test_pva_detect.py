@@ -82,7 +82,7 @@ def test_surrogates_track_true_asynchrony_index():
                 j = int(np.argmin(np.abs(seg["start_idx"].to_numpy() - b["start_idx"])))
                 lab.iloc[j] = b["label"]
             ie_t = r.efforts.loc[~r.efforts["delivered"], "start_idx"].to_numpy() / r.fs
-            bins = surrogates.bin_breaths(f, lab, ie_t, bin_s=60.0, rr_set=lungsim.SCENARIOS[name].vent.rr_set, duration_s=240)
+            bins = surrogates.bin_breaths(f, lab, ie_t, bin_s=30.0, rr_set=lungsim.SCENARIOS[name].vent.rr_set, duration_s=240)
             X = surrogates.surrogate_features(bins)
             rows.append(X.assign(scenario=name, seed=seed))
             ys.append(bins["ai_true"].to_numpy())

@@ -82,6 +82,55 @@ What is still unknown is the *geometry* of population activity across layers of 
 - **Overlap metrics depend on k.** Mitigation: report overlap as a function of k and use CV-selected k per layer.
 - **Multiple probes in one area within a session** are not independent. Mitigation: session random effect; probe nested in session.
 
+## Layer-assignment priors and inclusion criteria (pre-specified)
+
+| Layer | Default thickness prior (um, mouse V1; `lamlat.layers.MOUSE_V1_THICKNESS_UM`) | Anchor |
+|---|---|---|
+| L1 | 100 | above the L2/3 top |
+| L2/3 | 200 | above the L4 top |
+| L4 | 150 | centred on the earliest flash-evoked CSD sink at 20-80 ms, 100-700 um below the surface (`find_l4_sink`) |
+| L5 | 250 | below the L4 bottom |
+| L6 | 300 | below the L5 bottom |
+
+Priors can be replaced per area; boundary jitter (+/- 50 um), CCF labels and the spike-power landmark of Senzai et al.
+(2019) are the sensitivity arms of H6. A column enters the analysis when: a clean L4 sink exists (sink magnitude > 3 SD
+of the pre-stimulus CSD at the same depth), at least three layers have >= 15 QC-passing units, and >= 20 min of the
+relevant stimulus epoch (natural movies, drifting gratings, spontaneous) are available. Bin width 50 ms; counts are
+square-root transformed; behavioural regressors are running speed (lags 0-500 ms), pupil area and, where present,
+face-motion energy.
+
+## Pre-specified outputs
+
+1. Figure 1: CSD sink depth and latency distributions, unit counts per layer per column, agreement between assignment arms.
+2. Figure 2: layer x layer overlap matrices per area against the depth-shuffle null and the split-unit ceiling, unit-count matched (H1).
+3. Figure 3: unique stimulus and unique behaviour variance by layer (median across units and across latent dimensions) in both Allen datasets (H2).
+4. Figure 4: RRR cross-validated R^2 vs rank and communication dimensionality per layer pair (H3); locomotion and stimulus-epoch dependence of overlap (H4).
+5. Figure 5: laminar segregation vs anatomical hierarchy score across VISp, VISl, VISal, VISpm, VISam, VISrl (H5).
+6. Supplement: robustness to boundary jitter and assignment method (H6); replication in DANDI:000166.
+
+## Repository layout and quick start
+
+```
+src/lamlat/   io_allen.py (cache tables, depth from surface, unit selection, LFP NWB reader)
+              layers.py (CSD, L4 sink, layer boundaries and assignment, jitter)
+              latent.py (count matrices, FA dimensionality, overlaps, RRR, depth-shuffle null, matching)
+              partition.py (ridge encoding models, unique/shared variance, layer summaries)
+scripts/download_data.py   tests/test_lamlat.py   data/README.md
+```
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src pytest -q
+python scripts/download_data.py --cache                 # sessions/probes/channels/units CSVs from S3
+python - <<'EOF'
+from pathlib import Path
+from lamlat.io_allen import load_cache_tables, unit_depths_from_surface, select_units
+t = load_cache_tables(Path("data/allen/visual-coding/cache"))
+u = select_units(unit_depths_from_surface(t["units"], t["channels"], t["probes"]), session_id=715093703)
+print(u.groupby("structure")["depth_um"].describe())
+EOF
+```
+
 ## Milestones
 
 - [ ] Download cache CSVs and 5 pilot sessions (`scripts/download_data.py --cache --sessions 5`); compute depths.

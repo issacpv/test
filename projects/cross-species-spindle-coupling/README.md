@@ -84,6 +84,62 @@ SO-spindle coupling is the central mechanistic claim of the active-systems-conso
 - **Rodent spindle definition is contested** (10-15 vs 10-20 Hz; "spindle-like" events in delta). Mitigation: individualised band from the spectrum; report the fraction of recordings without a sigma peak as a result in itself.
 - **Data volume.** Stream LFP channels rather than downloading whole NWB files; cache a fixed set of channels per session.
 
+## Harmonised metric vector and multiverse factors (pre-specified)
+
+Every recording x specification yields the metric vector returned by `xspindle.harmonize.harmonized_metrics`:
+
+| Metric | Definition | Scale-free? |
+|---|---|---|
+| `sigma_peak_hz`, `sigma_found`, `aperiodic_exponent` | aperiodic-corrected spectral peak in the 8-18 Hz search window (>= 0.3 log10 units above the 1/f fit) | yes |
+| `spindle_density_per_min`, `spindle_dur_s`, `spindle_cycles` | two-threshold envelope detector at the individual peak +/- 2 Hz (detection 95th, boundary 80th percentile); duration limits 5-30 cycles of the peak frequency | yes (cycles, percentiles) |
+| `so_density_per_min`, `so_duration_s`, `so_freq_hz` | zero-crossing SO cycles (0.5-2.5 s) in the SO band, top 25% by peak-to-peak amplitude | yes (percentile) |
+| `mean_phase`, `mvl`, `mvl_z`, `rayleigh_p`, `n_coupled` | SO phase at the spindle envelope peak; mean resultant length; event-count-matched surrogate z; Rayleigh test | yes |
+| `offset_cycles_mean`, `offset_cycles_abs_mean`, `offset_s_mean` | spindle peak relative to the nearest SO trough in SO cycles (and seconds) | cycles: yes |
+| `tort_mi` | modulation index between SO phase and spindle-band amplitude (18 bins) | yes |
+| `frac_coupled` | share of spindles within one SO period of an SO trough | yes |
+
+Multiverse factors (`multiverse_grid`, 3 x 2 x 2 x 2 = 24 specifications by default):
+
+| Factor | Levels |
+|---|---|
+| SO band | 0.16-1.25 Hz (human convention); 0.3-1.5 Hz (harmonised default); 0.5-4 Hz (rodent "delta") |
+| Spindle band | individualised peak +/- 2 Hz; fixed 13.5 +/- 2 Hz |
+| Detection percentile | 90th; 95th (boundary percentile fixed at the 80th) |
+| Duration rule | 5-30 cycles; 0.5-3 s |
+
+`CONVENTIONAL` presets additionally encode per-species polarity (`positive_first` for depth recordings, where the
+down-state is positive) so that the detector-convention component can be separated from the species component.
+
+## Recording selection (pre-specified)
+
+- Rodent: per session one deep-layer cortical channel per shank/probe (plus one superficial channel where the probe spans
+  the column); NREM segments >= 60 s from the dandiset's state tables, or from `crude_nrem_mask` when absent (flagged).
+- Human iEEG: all normal-region channels with >= 60 s of NREM; frontal vs other regions retained as a factor.
+- Human scalp: Fpz-Cz (Sleep-EDF) or C4-M1 / Cz-Oz (NSRR); N2+N3 epochs; recordings with < 30 min of NREM excluded.
+- Every selected channel/segment is written to `data/manifests/segments.csv` (dandiset version, asset path, channel id,
+  segment start/end) before any coupling statistic is computed.
+
+## Repository layout and quick start
+
+```
+src/xspindle/   spectrum.py (Welch, 1/f fit, sigma peak)     detect.py (SO and spindle detectors)
+                coupling.py (phases, circular stats, surrogates, Tort MI)
+                harmonize.py (presets, resampling, crude NREM mask, metric vector, multiverse)
+scripts/download_data.py   tests/test_xspindle.py   data/README.md
+```
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src pytest -q                                              # synthetic SO + spindle signal
+python scripts/download_data.py --dataset dandi --dandiset 000041 --list   # asset list (API or S3 fallback)
+python - <<'EOF'
+import numpy as np
+from xspindle.harmonize import harmonized_metrics, HARMONIZED, CONVENTIONAL, synthetic_nrem
+x = synthetic_nrem(300, 200.0, np.random.default_rng(0), coupling_phase=0.0)
+print(harmonized_metrics(x, 200.0, HARMONIZED)["mean_phase"], harmonized_metrics(x, 200.0, CONVENTIONAL["rat_lfp"])["mean_phase"])
+EOF
+```
+
 ## Milestones
 
 - [ ] Fetch dandiset asset lists and choose sessions/channels (`scripts/download_data.py --dataset dandi --dandiset 000041 --list`).

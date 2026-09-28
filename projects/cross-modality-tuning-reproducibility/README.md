@@ -82,6 +82,58 @@ Calcium imaging and extracellular electrophysiology are the two workhorse popula
 - **Deconvolution algorithm choice** is itself a specification. Mitigation: include AR(1) deconvolution, Allen events and dF/F as multiverse arms; report all.
 - **Ephys undersampling of low-rate cells cannot be reweighted if they are absent.** Mitigation: report the reweighting's effective sample size; treat residual gap after reweighting as a lower bound on the measurement term.
 
+## Multiverse factors and matching covariates (pre-specified)
+
+| Modality | Factor | Levels |
+|---|---|---|
+| 2-photon | signal | mean dF/F; Allen L0 events; AR(1)-deconvolved rate (`xmodal.forward_model.deconvolve_ar1`, gamma from the indicator decay) |
+| 2-photon | neuropil correction | Allen default (fitted r); fixed r = 0.7 |
+| 2-photon | ROI inclusion | Allen default filters; additional SNR filter (top 80% by event SNR) |
+| Neuropixels | curation | Allen default (ISI ratio < 0.5, amplitude cutoff < 0.1, presence ratio > 0.9); lenient (1.0 / 0.3 / 0.5); none |
+| both | metric | vector OSI/DSI; ratio OSI/DSI; reliability-normalised OSI (`reliability_normalised_selectivity`); lifetime sparseness; responsiveness (permutation p < 0.05) |
+| both | response window | 0-0.5 s and 0-2 s after onset (drifting gratings); 0-0.25 s and 0-0.75 s (natural images) |
+
+Sampling covariates for propensity reweighting (`xmodal.multiverse.propensity_weights`): cortical depth binned to L2/3,
+L4, L5, L6; excitatory vs inhibitory proxy (Cre line for 2P, waveform trough-to-peak duration for Neuropixels); and a
+firing-rate proxy (spike rate for Neuropixels, deconvolved event rate for 2P). Effective sample sizes and standardised
+mean differences before/after reweighting are reported with every reweighted estimate.
+
+Forward-model parameters fitted on Visual Coding and frozen before Visual Behavior: indicator kernel (GCaMP6f for
+Ai93/Ai148 lines, GCaMP6s for Ai94/Ai162; approximate single-spike time constants from Chen et al., 2013), supralinearity
+exponent gamma in {1, 1.25, 1.5, 2}, saturation c_sat in {inf, 5, 2}, amplitude and noise from matched dF/F statistics.
+
+## Pre-specified outputs
+
+1. Table 1: cells/units per area x layer x modality x dataset under each inclusion arm, with effective sample sizes after reweighting.
+2. Figure 1: distributions of preferences (direction, TF, SF) and magnitudes (OSI, DSI, sparseness, responsiveness) by modality, with Wasserstein distances and within-modality bootstrap nulls (H1).
+3. Figure 2: sequential gap decomposition into sampling, measurement and analysis with ordering-averaged shares and bootstrap CIs (`sequential_gap_decomposition`; H2-H4).
+4. Figure 3: raw vs disattenuated cross-modality agreement of per-area statistics against the reliability ceiling (H5).
+5. Figure 4: invariance check per metric in Visual Coding and, held out, in Visual Behavior (H6); specification curves for "fraction selective".
+6. Supplement: forward-model fits and transfer; deconvolution-method sensitivity; inhibitory-line analyses.
+
+## Repository layout and quick start
+
+```
+src/xmodal/   tuning.py (condition means, OSI/DSI, preferences, sparseness, responsiveness)
+              forward_model.py (GCaMP kernels, nonlinearity, dF/F, event responses, AR(1) deconvolution, fitting)
+              reliability.py (split-half, test-retest, Spearman-Brown, disattenuation, bootstrap)
+              multiverse.py (distribution shift, propensity weights, balance, gap decomposition, grids, invariance)
+scripts/download_data.py   tests/test_xmodal.py   data/README.md
+```
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src pytest -q
+python scripts/download_data.py --dataset vcnpx --sample     # cache CSVs + released Neuropixels tuning metrics
+python scripts/download_data.py --dataset vc2p --sample      # 2P cell_specimens.json + 5 analysis files
+python - <<'EOF'
+import pandas as pd
+from xmodal.multiverse import distribution_shift
+npx = pd.read_csv("data/visual-coding-neuropixels/brain_observatory_1.1_analysis_metrics.csv")
+print(npx.columns[:20].tolist())     # locate g_osi_dg / g_dsi_dg / pref_tf_dg / lifetime_sparseness_dg
+EOF
+```
+
 ## Milestones
 
 - [ ] Download metric tables and 10 pilot experiments per dataset/modality (`scripts/download_data.py --sample`).

@@ -1,0 +1,16 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+pytest>=7.4
+# extraction of the charted databases
+duckdb>=0.10
+pyarrow>=14
+# optional: survival / competing-risk models for ventilation duration
+# lifelines>=0.28
+# optional: deep segmentation / detection models on waveform datasets
+# torch>=2.1
+# optional: Kaggle CLI for the open artificial-lung ventilator dataset
+# kaggle>=1.6

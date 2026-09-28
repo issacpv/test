@@ -87,6 +87,53 @@ Outcome variables (SHHS): incident hypertension between SHHS1 and SHHS2 (BP >= 1
 - **Low event counts in strata.** Incident CHF is rare. Mitigation: pool CVD outcomes; report HF as a secondary outcome; power analysis from SHHS event counts before pre-registration.
 - **Channel/derivation differences across cohorts** confound stager error with hardware. Mitigation: per-cohort analyses; derivation as a covariate; report MESA (256 Hz, Fz/Cz/Oz) and SHHS (125 Hz, C3/C4) separately.
 
+## Cohort, exposure and outcome definitions (pre-specified)
+
+| Element | Definition | Source variables (NSRR) |
+|---|---|---|
+| Analysis cohort A (incident hypertension) | SHHS1 participants with a scorable PSG (>= 4 h TST), normotensive at SHHS1 (SBP < 140 and DBP < 90, no antihypertensive use), with SHHS2 follow-up; outcome as in Javaheri et al. (2018) | SHHS1/SHHS2 datasets: blood-pressure and medication variables; `nsrrid` for linkage |
+| Analysis cohort B (incident CVD, CHF, all-cause mortality) | All SHHS1 participants with a scorable PSG; adjudicated events and censoring dates | `shhs-cvd-summary-dataset`: incident CHD/CVD/CHF/stroke indicators and dates, vital status, censoring date |
+| Replication cohort | MESA Sleep exam (2010-13) with MESA Exam 5 covariates; CVD events via a MESA data request; MrOS for older men | `mesa-sleep-dataset`, MESA event files; `mros-visit1-dataset` |
+| Exposure (gold) | N3% of TST from human scoring (R&K stages 3+4 merged for SHHS; AASM N3 for MESA/MrOS) | profusion XML `SleepStages` |
+| Exposure (automated) | N3% from U-Sleep, YASA and the feature stager; argmax and posterior-expected versions | model outputs (per-epoch posteriors, parquet) |
+| Effect modifiers | AHI stratum (< 5, 5-15, 15-30, >= 30 events/h; 3% and 4% desaturation definitions), arousal index, prevalent heart failure, beta-blocker use, age, sex | SHHS1 `ahi_a0h3a` / `ahi_a0h4`, arousal index, CVD-history and medication variables; NSRR harmonized `nsrr_*` equivalents where available |
+| Covariates (outcome models) | Age, sex, race/ethnicity, BMI, AHI, smoking, diabetes, baseline SBP | SHHS1 / MESA / MrOS datasets |
+| Validation subset | 15% of each cohort, stratified by AHI stratum and sex, fixed by seed before any model is run | `data/manifests/validation_ids.csv` (IDs only; restricted, not committed) |
+
+Epoch-level analysis file (one row per scored epoch; restricted): `record`, `epoch`, `y_true`, `y_pred_<stager>`,
+`p_<stage>_<stager>`, `resp_event_adjacent` (+/- 2 epochs), `arousal_adjacent`, plus record-level modifiers broadcast.
+
+## Pre-specified outputs
+
+1. Table 1: cohort characteristics by AHI stratum, including human vs automated N3% and Bland-Altman bias.
+2. Figure 1: per-stage sensitivity vs AHI stratum for every stager with subject-level bootstrap CIs (H1); in-domain vs out-of-domain stagers marked.
+3. Figure 2: epoch-level error rate as a function of time from the nearest respiratory event / arousal (H2), with the odds ratio inside vs outside event-adjacent epochs.
+4. Table 2: cluster-robust logistic regression of misclassification among true-N3 epochs on AHI, arousal index, age, sex, prevalent HF, beta-blocker use (H3).
+5. Figure 3: "swap-in" plot of hazard / odds ratios per 10-point N3% for each exposure version and outcome, with the classical-error null band (H4).
+6. Table 3: corrected estimates (regression calibration, SIMEX, multiple imputation from posteriors) and whether they cover the human-scored estimate (H5).
+7. Supplement: Sleep-EDF-trained vs SHHS1-trained feature stager (H6); R&K vs AASM sensitivity; MESA and MrOS replication.
+
+## Repository layout and quick start
+
+```
+src/stagebias/   hypnogram.py (XML/EDF+ ingest, event masks)   features.py (spectral features, stager)
+                 error_structure.py (confusions, kappa, N3 bias, event-locked and differential error)
+                 measurement_error.py (Cox/logistic, swap-in, regression calibration, SIMEX, nulls)
+scripts/download_data.py   tests/test_stagebias.py   data/README.md
+```
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src pytest -q                                     # synthetic-data tests (no downloads)
+python scripts/download_data.py --dataset sleep-edfx --sample
+python - <<'EOF'
+from stagebias.hypnogram import parse_profusion_xml, events_to_epoch_mask
+xml = open("data/nsrr/shhs/polysomnography/annotations-events-profusion/shhs1/shhs1-200001-profusion.xml").read()
+stages, events = parse_profusion_xml(xml)
+mask = events_to_epoch_mask(events.respiratory(), len(stages), pad_epochs=2)
+EOF
+```
+
 ## Milestones
 
 - [ ] NSRR DUA approved for SHHS, MESA, MrOS, CFS; Sleep-EDF downloaded (`scripts/download_data.py`).

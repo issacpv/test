@@ -46,7 +46,7 @@ The Allen Institute released the raw AP band of the Visual Coding Neuropixels su
 
 | Dataset | What is used | Size | Access | URL |
 |---|---|---|---|---|
-| Allen Visual Coding Neuropixels raw data (S3 `allen-brain-observatory`, prefix `visual-coding-neuropixels/raw-data/<session>/<probe>/`) | `spike_band.dat` (int16, 384 ch, 30 kHz; ~197 GB/probe/session), `lfp_band.dat`, `channel_states.npy`, `event_timestamps.npy`; select V1/LM/LGN probes from 8-12 `brain_observatory_1.1` sessions | ~2-3 TB for 12 probes (windows only: ~0.7 TB) | Open (AWS Open Data, no credentials) | https://registry.opendata.aws/allen-brain-observatory/ |
+| Allen Visual Coding Neuropixels raw data (S3 `allen-brain-observatory`, prefix `visual-coding-neuropixels/raw-data/<session>/<probe>/`) | `spike_band.dat` (int16, 384 ch, 30 kHz; median ~225 GB per probe, ~2.4 h), `lfp_band.dat`, `channel_states.npy`, `event_timestamps.npy`, per-session `sync.h5`; 331 probes in 58 sessions (~75 TB in total, listed by `scripts/download_data.py --list`); select V1/LM/LGN probes from 8-12 `brain_observatory_1.1` sessions | ~2.7 TB for 12 full probes (40-min windows only: ~0.7 TB) | Open (AWS Open Data, no credentials) | https://registry.opendata.aws/allen-brain-observatory/ |
 | Allen Visual Coding Neuropixels processed cache (S3, prefix `visual-coding-neuropixels/ecephys-cache/`) | `sessions.csv`, `probes.csv`, `channels.csv`, `units.csv`, per-session NWB (stimulus tables, original Kilosort 2 units and QC metrics) - the "reference universe" | ~100 GB for all sessions; CSVs < 200 MB | Open | same bucket; `allensdk` EcephysProjectCache |
 | DANDI:000034 - recordings from Buccino et al. 2020 (SpikeInterface) | Raw mouse recordings with existing multi-sorter agreement analysis; anchor for H1/H6 | 6 files, ~74 GB | Open | https://dandiarchive.org/dandiset/000034 |
 | IBL Brain-wide Map (DANDI:000409; raw `.ap.cbin` via IBL ONE/AWS) | Raw AP data for probes in visual cortex during the IBL task; second lab/rig for generalisation | 2,048 NWB, ~50 TB (use a handful of probes) | Open (DANDI; raw via `ONE` public credentials) | https://dandiarchive.org/dandiset/000409 ; https://int-brain-lab.github.io/ONE/ |
@@ -84,6 +84,54 @@ The Allen Institute released the raw AP band of the Visual Coding Neuropixels su
 - **Allen's reference universe was sorted with an older Kilosort 2 on full sessions** - windowed re-sorting is not identical. Mitigation: include the released units as a specification but do not treat them as ground truth; compare on the same windows.
 - **Drift correction confounded with sorter.** Mitigation: run Kilosort 2.5 with correction on/off and Kilosort 4 with `nblocks=0` vs default to separate the factor.
 - **Small number of mice.** Between-mouse variance estimated from 8-12 sessions is noisy; report CIs and add IBL probes as a second cohort.
+
+## Specification grid (pre-specified)
+
+| Factor | Levels |
+|---|---|
+| Sorter | Kilosort 2.5 (drift correction on / off); Kilosort 3; Kilosort 4 (default; `nblocks=0` arm); SpyKING CIRCUS 2; MountainSort 5; released Allen Kilosort-2 units (reference, full-session sort) |
+| Curation rule (`sortverse.agreement.QC_RULES`) | `allen_default` (ISI ratio < 0.5, amplitude cutoff < 0.1, presence ratio > 0.9); `lenient` (1.0 / 0.3 / 0.5); `none` |
+| Unit set | all QC-passing units; consensus (>= 3 sorters at agreement >= 0.5); orphans (1 sorter) |
+| Segment | one fixed 40-min window per probe covering the drifting-gratings block and the first and last natural-movie-1 repeats; identical preprocessing (300-6000 Hz, common median reference, bad channels removed) |
+
+Outcomes per specification (area x probe): fraction of responsive units; median vector OSI, ratio OSI and DSI; mean noise
+correlation; within-session drift index and excess drift (relative to within-block split-half similarity); narrow-spiking
+fraction; unit count; median amplitude; per-unit amplitude drift. All are computed by `sortverse.downstream` from the
+sorter's spike times and SpikeInterface templates, and stacked with `sortverse.multiverse.summarize_grid`.
+
+Probe selection: 12 probes from `brain_observatory_1.1` sessions with VISp and LGN coverage per `channels.csv`, at most
+two per mouse, fixed in `data/manifests/selected_probes.csv` before any sorting is run.
+
+## Pre-specified outputs
+
+1. Figure 1: pairwise agreement matrices and consensus/orphan counts per probe (H1); amplitude, rate and presence-ratio distributions of consensus vs orphan units (H2).
+2. Figure 2: specification curves for each claim (fraction responsive, median OSI, noise correlation, drift index) across sorter x QC x unit set, with mouse-level spread overlaid (H3).
+3. Table 1: eta-squared for sorter, QC rule, unit set and mouse from `variance_decomposition`, with session-bootstrap CIs; between-vs-within ratio from `between_vs_within` and the sorter-swap null (H3).
+4. Figure 3: drift index by sorter and drift-correction setting; per-unit drift vs amplitude drift and presence ratio (H4).
+5. Figure 4: narrow-spiking fraction by sorter (H5).
+6. Supplement: DANDI:000034 and hybrid ground-truth agreement/accuracy (H6); IBL replication; sorter failure log.
+
+## Repository layout and quick start
+
+```
+src/sortverse/   raw_io.py (byte ranges, memmap reads, NP1.0 geometry, SpikeInterface wrapper)
+                 agreement.py (matching, Hungarian pairing, consensus/orphans, QC metrics and rules)
+                 downstream.py (responsiveness, OSI/DSI, noise correlations, drift, waveform duration)
+                 multiverse.py (specification grids, variance decomposition, specification curves, nulls)
+scripts/download_data.py   tests/test_sortverse.py   data/README.md
+```
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src pytest -q
+python scripts/download_data.py --list            # S3 manifest of all raw probes (paginated listing)
+python scripts/download_data.py --sample          # 2-s byte-range slice of one probe + geometry file
+python - <<'EOF'
+from sortverse.raw_io import read_segment, to_microvolts
+x = read_segment("data/allen/raw/715093703/810755797/spike_band_t0-2s.dat", 0.0, 1.0)
+print(to_microvolts(x).std(axis=0)[:8])
+EOF
+```
 
 ## Milestones
 
