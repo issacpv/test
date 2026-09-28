@@ -43,6 +43,54 @@ Head motion and other quality problems bias morphometry (Reuter et al., 2015, *N
 | OpenNeuro S3 | raw images for local MRIQC runs on a stratified sample | selective (`datalad get`) | open | s3://openneuro.org |
 | ABIDE-II / ADHD-200 (optional) | external replication of differential exclusion | ~1,100 / ~900 subjects | open (INDI) | http://fcon_1000.projects.nitrc.org |
 
+## Group-label vocabulary and QC rule set
+
+`participants.tsv` group columns are free text. The audit maps them with an explicit, versioned vocabulary (two raters, disagreements to manual review):
+
+| Binary class | Accepted labels (case-insensitive) | Domain tag |
+|---|---|---|
+| control | control, ctrl, hc, healthy, td, typical, cn, nc, comparison | – |
+| patient | asd, autism | neurodevelopmental |
+| patient | adhd | neurodevelopmental |
+| patient | sz, scz, schizophrenia, psychosis, chr | psychiatric |
+| patient | mdd, depression, bipolar, bd, anxiety, ptsd | psychiatric |
+| patient | ad, mci, dementia, ftd | neurodegenerative |
+| patient | pd, parkinson, ms, epilepsy, stroke, tbi | neurological |
+| ambiguous | anything else (e.g. `group1`, `A`, drug arms) | excluded from H3/H4 |
+
+QC rules enumerated by `qc_sensitivity.standard_rule_grid` (extendable):
+
+| Axis | Rules | Source of threshold |
+|---|---|---|
+| BOLD motion | mean FD > 0.2, 0.25, 0.5 mm; FD > 0.2 mm in > 20 % of volumes | Power et al., 2012; Satterthwaite et al., 2012; MRIQC default `fd_thres` |
+| T1w quality | CJV > 0.45; per-dataset worst 10 % CJV; per-dataset lowest 10 % SNR | Ganzetti et al., 2016; relative rules common in ABCD/HBN papers |
+| Combined | motion AND T1w; motion OR T1w | typical multimodal exclusion |
+| Normative | IQM centile > 90 or > 95 for age × scanner (from `normative.py`) | this project |
+
+## Quick start (module API)
+
+```python
+from mriqc_audit import MRIQCClient, OpenNeuroClient, dedupe_records, annex_md5_index
+from mriqc_audit.openneuro_client import link_iqms_to_openneuro
+from mriqc_audit.normative import QuantileNormativeModel
+from mriqc_audit.qc_sensitivity import QCRule, qc_multiverse, specification_summary
+
+iqms = dedupe_records(MRIQCClient().fetch("T1w", max_pages=5))            # 5,000 records
+on = OpenNeuroClient()
+subjects = on.subject_metadata(max_datasets=100)                          # participantId/age/sex/group
+idx = annex_md5_index("data/openneuro_git/ds000030")                      # after `git clone --depth 1`
+linked = (link_iqms_to_openneuro(iqms, idx, "ds000030")
+          .merge(subjects, left_on=["dataset_id", "bids_sub"], right_on=["dataset_id", "participantId"]))
+
+qm = QuantileNormativeModel("cjv", cat_cols=("bids_meta.Manufacturer", "bids_meta.MagneticFieldStrength"),
+                            log_transform=True).fit(linked)
+linked["cjv_centile"] = qm.centile(linked)
+
+grid = {"cjv": [None, QCRule("cjv", 0.45), QCRule("cjv", 0.9, relative=True, by="dataset_id")]}
+res = qc_multiverse(linked, grid, group_col="group_binary", outcome_col="gm_vol", covariates=["age"])
+print(specification_summary(res))
+```
+
 ## Methods
 
 1. **Harvest** (`mriqc_client.py`): page through `/api/v1/T1w` and `/api/v1/bold`; flatten records; de-duplicate by (md5, MRIQC version); keep version because IQM definitions changed between major releases.

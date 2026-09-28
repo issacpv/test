@@ -139,19 +139,23 @@ def test_heterogeneity_and_independent_sampling_null():
     h = het.heterogeneity_index(M_struct, bulk.to_numpy())
     assert 0 <= h["phi_jaccard"] <= 1 and 0 <= h["motif_entropy"] <= 1
     assert h["targets_per_neuron"] == pytest.approx(6, abs=0.5)
-    # parallel channels -> fewer distinct motifs than random draws from the bulk map -> PHI below the null
-    dev_struct = het.null_deviation(M_struct, bulk.to_numpy(), n_sim=100)
-    dev_null = het.null_deviation(M_null, bulk.to_numpy(), n_sim=100)
+    # parallel channels -> every neuron has a near-twin -> nearest-neighbour distance far below the null
+    nn = het.mean_nearest_neighbour_distance
+    dev_struct = het.null_deviation(M_struct, bulk.to_numpy(), n_sim=100, stat=nn)
+    dev_null = het.null_deviation(M_null, bulk.to_numpy(), n_sim=100, stat=nn)
     assert dev_struct["z"] < -2 and dev_struct["p"] < 0.05
     assert abs(dev_null["z"]) < 3.5  # neurons sampled independently from the bulk are consistent with the null
     assert dev_struct["z"] < dev_null["z"]
+    # PHI (mean pairwise distance) is consistent with the null for the null population
+    assert abs(het.null_deviation(M_null, bulk.to_numpy(), n_sim=100)["z"]) < 3.5
+    assert h["motif_entropy"] < het.heterogeneity_index(M_null)["motif_entropy"]
     est, lo, hi = het.bootstrap_ci(M_struct, n_boot=100)
     assert lo <= est <= hi
     r = het.rarefied_statistic(M_struct, n_common=20, n_rep=20)
     assert 0 <= r <= 1
     table = het.region_table({"R1": M_struct, "R2": M_null}, {"R1": bulk, "R2": bulk}, n_common=20, n_sim=50, n_boot=50)
-    assert set(table.index) == {"R1", "R2"} and "dev_z" in table.columns
-    assert table.loc["R1", "dev_z"] < table.loc["R2", "dev_z"]
+    assert set(table.index) == {"R1", "R2"} and {"dev_z", "devnn_z", "phi_rarefied"} <= set(table.columns)
+    assert table.loc["R1", "devnn_z"] < table.loc["R2", "devnn_z"]
 
 
 def test_identical_neurons_have_zero_heterogeneity():

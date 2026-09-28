@@ -35,7 +35,7 @@ Single-neuron full-morphology datasets registered to CCFv3 (Wang et al., 2020, C
 ## Research questions / hypotheses
 
 1. **H1 (bulk predicts targets only coarsely).** Using bulk normalised projection volume of the source region as a score, per-neuron AUROC for target membership is > 0.7 on average but with a wide range across regions; precision at k = 5 targets is < 0.5, i.e. the majority of bulk "top targets" are not targeted by any given neuron.
-2. **H2 (motif structure beyond random sampling).** In most cortical source regions, the observed pairwise Jaccard distance between neurons falls *below* the independent-sampling-from-bulk null (z < −3): neurons cluster into a limited set of projection motifs (parallel channels) rather than sampling targets at random from the bulk map. The deficit is larger for cortical L5 ET / L2-3 IT populations than for thalamic relay neurons (which we expect to be close to the null). Regions with z > 3 (mutually exclusive targeting) are predicted to be rare and to coincide with known anti-correlated pathways (e.g. striatum-projecting vs. brainstem-projecting subclasses).
+2. **H2 (motif structure beyond random sampling).** In most cortical source regions, the observed nearest-neighbour Jaccard distance between neurons (primary statistic; mean pairwise distance, PHI, as secondary) falls *below* the independent-sampling-from-bulk null (z < −3): neurons cluster into a limited set of projection motifs (parallel channels) rather than sampling targets at random from the bulk map. The deficit is larger for cortical L5 ET / L2-3 IT populations than for thalamic relay neurons (which we expect to be close to the null). Regions with z > 3 (mutually exclusive targeting) are predicted to be rare and to coincide with known anti-correlated pathways (e.g. striatum-projecting vs. brainstem-projecting subclasses).
 3. **H3 (recovery curve).** Pooling n single neurons recovers the bulk vector with Spearman rho > 0.8 for n ≈ 30-100 in most regions; the required n scales with the heterogeneity index.
 4. **H4 (model consequences).** Replacing bulk-derived edge weights with single-neuron-derived weights changes simulated FC (TVB reduced-Wong-Wang or Wilson-Cowan) by a Frobenius-normalised difference > 0.2 for regions with high heterogeneity index, and shifts hub rankings (Kendall tau < 0.8).
 5. **H5 (bias direction).** Bulk projection density over-represents targets reached by fibres of passage and by high-bouton-density collaterals; single-neuron terminal counts vs. axon length weighting reveal this systematically (terminal-based concordance < length-based concordance for white-matter-adjacent targets).
@@ -51,12 +51,50 @@ Single-neuron full-morphology datasets registered to CCFv3 (Wang et al., 2020, C
 | ION single-neuron projectomes (Gao 2022 PFC; Qiu 2024 hippocampus) | Registered single-neuron axons for additional regions | thousands | Open per the papers' data-availability statements | see papers |
 | MAPseq / BARseq target tables (Han et al., 2018) | Independent barcoded single-cell projection matrices for cross-validation in visual cortex | thousands of cells | Open (paper supplements) | see paper |
 
+## Quick start
+
+```bash
+cd projects/mesoscale-vs-single-axon-connectivity
+pip install -r requirements.txt
+python -m pytest tests -q                                   # synthetic tests, no network
+python scripts/download_data.py --allen --sample            # allensdk: ontology, 25 um annotation, 10 experiments
+python scripts/download_data.py --mouselight-json data/mouselight/mouselight_all.json   # browser JSON export -> SWC
+python - <<'EOF'
+import nrrd, pandas as pd
+from meso_vs_axon.allen_connectivity import load_projection_table, region_projection_vector, normalize_vector
+from meso_vs_axon.ccf_assign import read_swc, per_neuron_target_vector, neuron_matrix
+from meso_vs_axon.concordance import concordance_table
+from meso_vs_axon.heterogeneity import region_table
+ann, _ = nrrd.read("data/allen/annotation_25.nrrd")
+summary = pd.read_csv("data/allen/structures_summary.csv")
+acr = dict(zip(summary["id"], summary["acronym"]))
+# ancestor_map: from ConnectivityFetcher(...).ancestor_map() or a cached JSON of the structure tree
+mat, exps = load_projection_table("data/allen")
+bulk = normalize_vector(region_projection_vector(mat, exps, "MOp"), drop_self="MOp")
+vecs = [per_neuron_target_vector(read_swc(p), ann, 25.0, ancestor_map, summary["id"], acr) for p in swc_paths_MOp]
+M = neuron_matrix(vecs, columns=bulk.index)
+print(concordance_table(bulk, M).describe())
+print(region_table({"MOp": M}, {"MOp": bulk}))
+EOF
+```
+
+## Analysis tables
+
+| Table | Grain | Key columns |
+|---|---|---|
+| `bulk_vectors` | source region × target label × parameter | source_acronym, target_label (`<acronym>_<ipsi/contra>`), parameter, n_experiments, mean, sd, cre_line (or WT) |
+| `neuron_targets` | neuron × target label | neuron, dataset (MouseLight / SEU-ALLEN / ION), soma_structure, soma_layer, cre_line, target_label, frac_length, frac_terminals, axon_length_total, n_tips |
+| `concordance` | neuron | neuron, source, jaccard, spearman, weighted_tau, auroc, precision_at_5, recall_at_5, n_targets, weighting |
+| `recovery_curves` | source × n × repeat | source, n, rep, spearman, weighted_tau; summarised as n_50 per source |
+| `region_summary` | source region | n_neurons, phi_jaccard, phi_ci_low/high, phi_rarefied, nn_distance, motif_entropy, targets_per_neuron, dev_z, dev_p, devnn_z, devnn_p, mean_auroc, n_50 |
+| `model_edges` | source × target | w_bulk, w_single_pooled, w_single_sd, phi_source (for variance-scaled model edges) |
+
 ## Methods
 
 1. **Bulk projection vectors** (`src/meso_vs_axon/allen_connectivity.py`): for each source summary structure, average `normalized_projection_volume` (and `projection_density`) over wild-type experiments whose injection is centred in the structure (injection fraction ≥ 0.5), split ipsi/contra; alternative: Cre-line experiments matched to the single-neuron dataset's Cre line; alternative: `mcmodels` voxel model evaluated at each neuron's soma voxel (removes injection-site mismatch).
 2. **Single-neuron target vectors** (`ccf_assign.py`): axon nodes mapped to CCFv3 annotation voxels (25 µm), collapsed to summary structures via the ontology ancestor map, split ipsi/contra relative to the soma; two weightings: axon length per target and terminal (tip) count per target; normalised to fractions; binarised at ≥ 1% of axon length or ≥ 2 terminals.
 3. **Concordance** (`concordance.py`): per neuron — Jaccard with the binarised bulk vector, Spearman and weighted Kendall tau (top-weighted), AUROC and precision/recall at k using the bulk vector as score; per region — pooled single-neuron vector vs. bulk correlation; subsampling curves; label-permutation null.
-4. **Heterogeneity index** (`heterogeneity.py`): mean pairwise Jaccard distance among neurons of a region (PHI), motif entropy, divergence (targets per neuron), bulk-explained fraction; independent-sampling null (each neuron draws its observed number of targets without replacement with probabilities ∝ bulk vector); null-deviation z-score (negative = parallel channels, positive = mutually exclusive targeting); neuron-level bootstrap CIs; rarefaction to a common n across regions.
+4. **Heterogeneity index** (`heterogeneity.py`): mean pairwise Jaccard distance among neurons of a region (PHI), nearest-neighbour Jaccard distance, motif entropy, divergence (targets per neuron), bulk-explained fraction; independent-sampling null (each neuron draws its observed number of targets without replacement with probabilities ∝ bulk vector); null-deviation z-score for each statistic (negative = parallel channels, positive = mutually exclusive targeting; the nearest-neighbour statistic is the primary detector because PHI loses power when the bulk map is concentrated on few targets); neuron-level bootstrap CIs; rarefaction to a common n across regions.
 5. **Cell-type stratification**: soma layer (from CCF layer annotation) and Cre line (SEU-ALLEN metadata) as strata; compare PHI within vs. across strata to separate "type mixture" from "within-type divergence".
 6. **Network-model consequences**: build region × region weight matrices from (a) bulk, (b) pooled single neurons, (c) bulk with per-edge variance from PHI; simulate with The Virtual Brain (mouse connectome pipeline of Melozzi 2017) and compare FC and graph metrics.
 7. **Tools**: allensdk, mcmodels, numpy/scipy/pandas, scikit-learn (AUROC), tvb-library (optional), networkx.

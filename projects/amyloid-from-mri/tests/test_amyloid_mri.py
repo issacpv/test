@@ -113,7 +113,7 @@ def test_combat_reduces_batch_effect_and_transforms_new_data():
 # ---------------------------------------------------------------------------
 # models
 # ---------------------------------------------------------------------------
-def _synthetic_cohort(n_subjects=160, sessions=2, seed=0):
+def _synthetic_cohort(n_subjects=200, sessions=2, seed=0):
     rng = np.random.default_rng(seed)
     subj = np.repeat(np.arange(n_subjects), sessions)
     age = np.repeat(rng.uniform(60, 85, n_subjects), sessions)

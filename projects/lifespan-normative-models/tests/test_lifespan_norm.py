@@ -14,7 +14,8 @@ def test_age_bins_and_adapters():
     assert hz.parse_age_bin("36+") == (37.0, True)
     assert hz.parse_age_bin(31) == (31.0, False)
     ya = hz.from_hcp_ya(pd.DataFrame({"Subject": [100307, 100408], "Gender": ["F", "M"], "Age": ["26-30", "36+"]}))
-    assert list(ya.columns) == list(hz.SCHEMA) and ya.age.tolist() == [28.0, 37.0] and ya.age_is_binned.all()
+    # bins are inclusive integer years: 26-30 covers [26, 31) -> 28.5; 36+ -> 36 + 2/2
+    assert list(ya.columns) == list(hz.SCHEMA) and ya.age.tolist() == [28.5, 37.0] and ya.age_is_binned.all()
     nda = hz.from_nda(pd.DataFrame({"src_subject_id": ["HCA6002236"], "interview_age": [420], "sex": ["F"]}),
                       dataset="HCP-A")
     assert nda.age.iloc[0] == 35.0 and nda.site.iloc[0] == "HCP-A"

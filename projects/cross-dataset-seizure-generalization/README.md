@@ -108,3 +108,70 @@ Ages: CHB-MIT 1.5-22 y; Siena 20-71 y; TUSZ neonatal to >90 y (age in patient me
 - TUSZ requires a signed TUH EEG data-use agreement; the data may not be redistributed. Keep credentials in environment variables (`TUH_USERNAME`, `TUH_PASSWORD`), never in code or git.
 - Do not upload raw EEG from any of these corpora to third-party LLM/ML APIs; PhysioNet's responsible-use terms and the TUH agreement restrict redistribution and third-party processing.
 - Never commit data; `data/` and `*.edf` are git-ignored. Only manifests with subject ids and event times (already public in the source datasets) may be committed.
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py --dataset chbmit --sample      # open, ~0.5 GB
+python scripts/download_data.py --dataset siena --sample
+python scripts/download_data.py --build-manifests              # data/manifests/{records,events}.csv
+pytest tests -q                                                # synthetic-data tests, no EEG needed
+```
+
+Minimal end-to-end sketch with the starter modules:
+
+```python
+from xseizure import io_edf, features, splits, scoring, domain_shift
+rec = io_edf.load_edf_harmonized("data/chbmit/chb01/chb01_03.edf")        # 18-pair bipolar, 256 Hz
+W = features.windows_from_array(rec.data, rec.fs, win_s=4, step_s=2)      # (n_win, 18, 1024)
+y = features.window_labels(len(W), 4, 2, events=[(2996, 3036)])           # from chb01-summary.txt
+X = features.spectral_features(W, rec.fs)
+folds = splits.patient_wise_split(subject_ids, n_folds=5, weights=y)      # over the whole corpus
+p = features.LogisticBaseline().fit(X[tr], y[tr]).predict_proba(X[te])
+hyp = scoring.probabilities_to_events(features.smooth_probabilities(p), step_s=2, win_s=4)
+print(scoring.score_all(ref_events, hyp, duration_s=rec.duration_s))      # ovlp / taes / szcore
+print(domain_shift.shift_report(X_chbmit_bg, X_siena_bg, W_chbmit_bg, W_siena_bg, 256))
+```
+
+## Repository layout
+
+```
+README.md                 this document
+requirements.txt
+data/README.md            acquisition instructions (PhysioNet wget, TUH rsync, Zenodo API)
+scripts/download_data.py  downloader + manifest builder
+src/xseizure/
+  io_edf.py               EDF loading, channel-name normalization, 18-pair bipolar harmonization, resampling
+  splits.py               window-/record-/patient-wise and LOPO splitters, leakage assertions, inflation CI
+  features.py             spectral + Hjorth features, covariance/tangent-space (Riemannian) features, re-centering, logistic baseline
+  scoring.py              OVLP, TAES, SzCORE-style event scorers, sample metrics, post-processing, sensitivity@FP/24h
+  domain_shift.py         MMD + permutation test, PSD divergence, Riemannian covariance shift
+tests/test_xseizure.py    synthetic tests pinning scorer semantics and leakage behaviour
+```
+
+## Planned tables and figures
+
+- Table 1: cohort descriptives (subjects, age range, hours, seizures, fs, montage, channel coverage of the 18 canonical pairs).
+- Table 2: leakage-inflation matrix, rows = model family (spectral-LR, Riemannian-LR, CNN, FM-probe, FM-finetune), columns = split regime (window, record, patient, LOPO), cells = SzCORE F1 with subject-bootstrap CI.
+- Table 3: cross-cohort leaderboard, rows = models, columns = target (Siena, TUSZ-dev, TUSZ-eval, Helsinki-consensus, Helsinki-majority), three scorers per cell; contaminated (pretraining-overlap) cells flagged.
+- Table 4: shift diagnostics per (source, target): MMD, PSD JS divergence, covariance distance, age gap; Spearman with delta F1.
+- Figure 1: sensitivity vs FP/24 h curves per target, harmonized vs unharmonized montage.
+- Figure 2: ranking stability across scorers (bump chart) with Kendall tau.
+- Figure 3: delta F1 vs log-MMD scatter with model family as marker.
+- Supplementary: per-subject FP/24 h distributions; annotator-disagreement analysis on Helsinki.
+
+## Key references
+
+- Ali, Angelova & Karmakar (2024). Epileptic seizure detection using CHB-MIT dataset: the overlooked perspectives. *R. Soc. Open Sci.* 11:230601.
+- Dan et al. (2024). SzCORE: Seizure Community Open-source Research Evaluation framework. *Epilepsia*.
+- SzCORE as a benchmark: report from the seizure detection challenge 2025 (arXiv:2505.18191).
+- Shah, Golmohammadi, Obeid & Picone (2021). Objective evaluation metrics for automatic classification of EEG events. In *Biomedical Signal Processing*, Springer.
+- Shah et al. (2018). The Temple University Hospital Seizure Detection Corpus. *Front. Neuroinform.* 12:83.
+- Stevenson et al. (2019). A dataset of neonatal EEG recordings with seizure annotations. *Sci. Data* 6:190039.
+- Detti et al. (2020). EEG synchronization analysis for seizure prediction: a study on data of noninvasive recordings. *Processes* (Siena Scalp EEG Database).
+- Shoeb (2009). Application of machine learning to epileptic seizure onset detection and treatment. MIT PhD thesis (CHB-MIT).
+- Wu & Zhao (2025). SeizureTransformer (arXiv:2504.00336).
+- EEG-FM-Bench (arXiv:2508.17742); RobustSeiz (arXiv:2609.04007); "What EEG foundation models encode: dataset identity" (arXiv:2607.24519).
+- Kostas, Aroca-Ouellette & Rudzicz (2021). BENDR. *Front. Hum. Neurosci.*; Yang, Westover & Sun (2023). BIOT. *NeurIPS*; Jiang, Zhao & Lu (2024). LaBraM. *ICLR*; Wang et al. (2024). EEGPT. *NeurIPS*; Wang et al. (2025). CBraMod. *ICLR*.
+- Zanini et al. (2018). Transfer learning: a Riemannian geometry framework with applications to BCI. *IEEE TBME*; He & Wu (2020). Transfer learning for BCIs: a Euclidean space data alignment approach. *IEEE TBME*.

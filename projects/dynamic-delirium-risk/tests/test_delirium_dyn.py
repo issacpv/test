@@ -108,12 +108,15 @@ def test_transition_intensities_recover_planted_benzo_effect():
 
 
 def test_ablation_ipaw_and_landmark_auroc_run():
-    sim = asm.simulate_stays(n_stays=150, rng=np.random.default_rng(4))
+    rng = np.random.default_rng(4)
+    sim = asm.simulate_stays(n_stays=150, rng=rng)
     w, sed = sim["windows"], sim["sedation"]
     f = ft.assemble_features(w, sedation=sed)
+    f["hr_mean_12h"] = rng.normal(90, 15, size=len(f))  # a physiology column (pure noise here)
     lm = lmk.build_landmark_dataset(w, horizon=1, scheme="binary_coma_negative").merge(f, left_on=["stay_id", "landmark_idx"], right_on=["stay_id", "window_idx"], how="left")
     blocks = ft.feature_blocks([c for c in f.columns if c not in ("stay_id", "window_idx")])
-    feats = blocks["sedation"] + blocks["assessment"]
+    assert blocks["physiology"] == ["hr_mean_12h"]
+    feats = blocks["sedation"] + blocks["assessment"] + blocks["physiology"]
     res = md.sedation_leakage_ablation(lm, feats, blocks["sedation"], blocks["assessment"], admission_cols=["asm_n_prev_delirium"], n_splits=3)
     assert set(res.index) == {"admission_only", "physiology_only", "physiology_plus_assessment", "full"}
     assert np.isfinite(res["auroc"]).all()

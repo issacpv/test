@@ -1,0 +1,17 @@
+# Core (used by src/scannability and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+patsy>=0.5
+pytest>=7.4
+
+# Data access (scripts/download_data.py)
+requests>=2.31
+# openneuro-py>=2024.2   # alternative downloader
+# datalad>=1.0           # alternative downloader
+
+# IQMs are produced with the MRIQC container (docker/apptainer), not a pip package:
+#   docker run -v $PWD/data/openneuro/ds000030:/data:ro -v $PWD/data/mriqc/ds000030:/out \
+#       nipreps/mriqc:24.0.2 /data /out participant --no-sub

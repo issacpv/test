@@ -46,6 +46,27 @@ def mean_pairwise_jaccard_distance(B: np.ndarray) -> float:
     return float(np.mean(1.0 - jac))
 
 
+def mean_nearest_neighbour_distance(B: np.ndarray) -> float:
+    """Mean over neurons of the Jaccard distance to its most similar other neuron.
+
+    0 = every neuron has a twin (strong motif structure); random sampling from a bulk map gives
+    intermediate values. More sensitive to parallel channels than the mean pairwise distance when
+    the bulk map is concentrated on a few targets.
+    """
+    B = np.asarray(B, float)
+    n = B.shape[0]
+    if n < 2:
+        return float("nan")
+    inter = B @ B.T
+    sizes = B.sum(axis=1)
+    union = sizes[:, None] + sizes[None, :] - inter
+    with np.errstate(invalid="ignore", divide="ignore"):
+        jac = np.where(union > 0, inter / union, 1.0)
+    dist = 1.0 - jac
+    np.fill_diagonal(dist, np.inf)
+    return float(np.mean(dist.min(axis=1)))
+
+
 def motif_entropy(B: np.ndarray) -> float:
     """Normalised entropy (0-1) of distinct target-set motifs; 1 = every neuron unique."""
     n = B.shape[0]
@@ -76,7 +97,7 @@ def heterogeneity_index(M, bulk: Optional[Sequence[float]] = None, threshold: fl
     """All heterogeneity components for one source region."""
     B = _binary_matrix(M, threshold)
     out = {"n_neurons": int(B.shape[0]), "phi_jaccard": mean_pairwise_jaccard_distance(B),
-           "motif_entropy": motif_entropy(B), **divergence(B),
+           "nn_distance": mean_nearest_neighbour_distance(B), "motif_entropy": motif_entropy(B), **divergence(B),
            "n_population_targets": int(B.any(axis=0).sum())}
     if bulk is not None:
         out["bulk_explained"] = bulk_explained(np.asarray(M, float), bulk)
@@ -109,21 +130,24 @@ def independent_sampling_null(bulk: Sequence[float], n_targets_per_neuron: Seque
     return out
 
 
-def null_deviation(M, bulk: Sequence[float], threshold: float = 0.01, n_sim: int = 500, seed: int = 0) -> Dict[str, float]:
-    """Observed PHI vs the independent-sampling null: z-score and two-sided permutation p.
+def null_deviation(M, bulk: Sequence[float], threshold: float = 0.01, n_sim: int = 500, seed: int = 0,
+                   stat: Callable[[np.ndarray], float] = mean_pairwise_jaccard_distance) -> Dict[str, float]:
+    """Observed statistic vs the independent-sampling null: z-score and two-sided permutation p.
 
     ``z < 0``: fewer distinct motifs than random draws from the bulk map (parallel channels);
-    ``z > 0``: more mutually exclusive targeting than chance.
+    ``z > 0``: more mutually exclusive targeting than chance. Use ``stat=mean_nearest_neighbour_distance``
+    as the primary structure detector; ``mean_pairwise_jaccard_distance`` (PHI) has low power when
+    the bulk map is concentrated on a few targets (random draws then overlap heavily too).
     """
     B = _binary_matrix(M, threshold)
-    obs = mean_pairwise_jaccard_distance(B)
-    null = independent_sampling_null(bulk, B.sum(axis=1), n_sim=n_sim, seed=seed)
+    obs = stat(B)
+    null = independent_sampling_null(bulk, B.sum(axis=1), n_sim=n_sim, seed=seed, stat=stat)
     sd = null.std(ddof=1)
     z = (obs - null.mean()) / sd if sd > 0 else float("nan")
     p_upper = (np.sum(null >= obs) + 1) / (n_sim + 1)
     p_lower = (np.sum(null <= obs) + 1) / (n_sim + 1)
-    return {"phi_observed": obs, "phi_null_mean": float(null.mean()), "phi_null_sd": float(sd), "z": float(z),
-            "p": float(min(1.0, 2 * min(p_upper, p_lower)))}
+    return {"observed": float(obs), "null_mean": float(null.mean()), "null_sd": float(sd), "z": float(z),
+            "p": float(min(1.0, 2 * min(p_upper, p_lower))), "stat": getattr(stat, "__name__", "stat")}
 
 
 excess_heterogeneity = null_deviation  # backwards-compatible alias
@@ -168,11 +192,15 @@ def region_table(M_by_region: Dict[str, pd.DataFrame], bulk_by_region: Optional[
         if n_common is not None:
             row["phi_rarefied"] = rarefied_statistic(M, n_common, threshold=threshold, seed=seed)
         if bulk is not None and np.sum(bulk) > 0:
-            row.update({f"dev_{k}": v for k, v in null_deviation(M, bulk, threshold, n_sim, seed).items()})
+            dev = null_deviation(M, bulk, threshold, n_sim, seed)
+            row.update({f"dev_{k}": v for k, v in dev.items() if k != "stat"})
+            dev_nn = null_deviation(M, bulk, threshold, n_sim, seed, stat=mean_nearest_neighbour_distance)
+            row.update({f"devnn_{k}": v for k, v in dev_nn.items() if k != "stat"})
         rows.append(row)
     return pd.DataFrame(rows).set_index("region") if rows else pd.DataFrame()
 
 
-__all__ = ["mean_pairwise_jaccard_distance", "motif_entropy", "divergence", "bulk_explained", "heterogeneity_index",
+__all__ = ["mean_pairwise_jaccard_distance", "mean_nearest_neighbour_distance", "motif_entropy", "divergence",
+           "bulk_explained", "heterogeneity_index",
            "independent_sampling_null", "null_deviation", "excess_heterogeneity", "bootstrap_ci", "rarefied_statistic",
            "region_table"]

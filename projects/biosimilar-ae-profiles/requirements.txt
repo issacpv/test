@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+requests>=2.31
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# optional for full-database processing
+# pyarrow>=14
+# duckdb>=0.10

@@ -108,7 +108,7 @@ def grouped_cv_auc(df: pd.DataFrame, cols: Sequence[str] = tuple(FEATURE_COLS), 
                    seed: int = 0, fit_fn: Callable[[pd.DataFrame], Pipeline] = None) -> Dict[str, object]:
     """Grouped-by-drug cross-validation; returns pooled out-of-fold AUC and per-fold AUCs."""
     rng = np.random.default_rng(seed)
-    drugs = df["drug"].unique()
+    drugs = np.array(list(df["drug"].unique()), dtype=object)
     rng.shuffle(drugs)
     folds = np.array_split(drugs, n_splits)
     oof = np.full(len(df), np.nan)

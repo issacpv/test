@@ -102,3 +102,75 @@ The Allen Neuropixels datasets record simultaneously from visual cortex, thalamu
 - All three datasets are openly licensed animal-research data (Allen Institute terms of use; IBL CC-BY). Cite the dataset papers and the DANDI/ONE identifiers used.
 - No data are committed; `data/` and `*.nwb` are git-ignored. Cached derived tables (unit metrics, binned counts) live under `data/cache/` and are also ignored.
 - Report sorter versions and quality thresholds exactly; they change the answer.
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py --dataset visual_coding --list      # manifests of DANDI 000021/000022 assets
+python scripts/download_data.py --dataset visual_coding --sample    # stream one session, cache units + stimulus tables
+pytest tests -q                                                     # synthetic-population tests, no network
+```
+
+End-to-end sketch on one cached Visual Coding session:
+
+```python
+from npx_drift import loaders, quality, responses, drift_metrics, nulls
+sess = loaders.load_cached_session("data/cache/visual_coding/<session>.npz")
+units = quality.add_area_groups(quality.filter_units(sess.units))            # Allen default criteria
+for group in ("cortex", "thalamus", "hippocampal"):
+    ids = units.index[units["area_group"] == group]
+    R, stim = responses.response_matrix(sess.subset_units(ids), table="natural_movie_one_presentations",
+                                        window=(0.0, 1.0), bin_size=1.0)
+    X = responses.trial_responses(R); cond = stim["condition"].to_numpy()   # condition = movie frame block
+    block = responses.time_blocks(stim["start_time"].to_numpy(), n_blocks=3)
+    keep = responses.balance_trials(cond, block)
+    summ = drift_metrics.drift_summary(X[keep], cond[keep], block[keep])
+    null = nulls.time_shuffle_null(X[keep], cond[keep], block[keep], nulls.lag1_pv_metric, n_perm=200)
+    pois = nulls.poisson_rate_matched_null(X[keep], cond[keep], block[keep], nulls.lag1_pv_metric)
+    print(group, summ.as_dict(), null["p_value"], pois["null_mean"])
+```
+
+## Repository layout
+
+```
+README.md
+requirements.txt
+data/README.md             DANDI / AllenSDK / IBL ONE access instructions and cache layout
+scripts/download_data.py   asset listing with pagination, NWB streaming, AllenSDK + IBL adapters, caching
+src/npx_drift/
+  loaders.py               SessionData container; DANDI URL resolution; remfile/h5py/pynwb streaming; adapters; synthetic sessions
+  quality.py               Allen/IBL quality filters, quality strata, stability covariates, CCF area groups
+  responses.py             spike binning, response tensors, time blocks, condition means, trial balancing
+  drift_metrics.py         PV correlation vs lag, RDM stability, tuning correlation, cross-time decoding, drift index
+  nulls.py                 time-shuffle, Poisson rate-matched and circular-shift nulls, permutation p-values
+tests/test_npx_drift.py    stationary vs drifting synthetic populations
+```
+
+## Planned tables and figures
+
+- Table 1: sessions and units per dataset x area group after quality filtering; sorter version; median presence ratio, amplitude cutoff, ISI violations per group (the confound table).
+- Table 2: within-session drift per area group and stimulus (PV lag-1 correlation, slope per block, RDM stability, decoder drift index), raw and null-corrected, with session-bootstrap CIs.
+- Table 3: mixed-model coefficients for `drift ~ area_group * stimulus + quality covariates + (1|session) + (1|mouse)`; area contrasts before vs after quality adjustment (H2).
+- Table 4: IBL region-level cross-time decoding of stimulus side / choice (early vs late trials), top and bottom 20 regions, probe-drift covariate.
+- Figure 1: PV correlation vs time lag per area group, with time-shuffle and Poisson null bands.
+- Figure 2: single-unit tuning correlation distributions vs population decoder cross-time accuracy (readout shielding) per area group.
+- Figure 3: drift vs unit-quality stratum, per area group (does the ordering survive within each stratum?).
+- Figure 4: cross-session RDM similarity across mice by area group (H6).
+
+## Key references
+
+- Siegle et al. (2021). Survey of spiking in the mouse visual system reveals functional hierarchy. *Nature* 592:86-92.
+- International Brain Laboratory (2025). A brain-wide map of neural activity during complex behaviour. *Nature*; International Brain Laboratory (2025). Brain-wide representations of prior information in mouse decision-making. *Nature*.
+- Deitch, Rubin & Ziv (2021). Representational drift in the mouse visual cortex. *Curr. Biol.* 31:4327-4339.
+- Marks & Goard (2021). Stimulus-dependent representational drift in primary visual cortex. *Nat. Commun.* 12:5169.
+- Aitken, Garrett, Olsen & Mihalas (2022). The geometry of representational drift in natural and artificial neural networks. *PLoS Comput. Biol.* 18:e1010716.
+- Schoonover et al. (2021). Representational drift in primary olfactory cortex. *Nature* 594:541-546.
+- Driscoll et al. (2017). Dynamic reorganization of neuronal activity patterns in parietal cortex. *Cell* 170:986-999.
+- Rule et al. (2020). Stable task information from an unstable neural population. *eLife* 9:e51121; Rule, O'Leary & Harvey (2019). Causes and consequences of representational drift. *Curr. Opin. Neurobiol.* 58:141-147.
+- Gallego et al. (2020). Long-term stability of cortical population dynamics underlying consistent behavior. *Nat. Neurosci.* 23:260-270.
+- Ziv et al. (2013). Long-term dynamics of CA1 hippocampal place codes. *Nat. Neurosci.* 16:264-266; Khatib et al. (2023). Active experience, not time, determines within-day representational drift in dorsal CA1. *Neuron*.
+- van Beest et al. (2024). Tracking neurons across days with high-density probes. *Nat. Methods*; Steinmetz et al. (2021). Neuropixels 2.0. *Science* 372:eabf4588.
+- Sadeh & Clopath (2022). Contribution of behavioural variability to representational drift. *eLife* 11:e77907.
+- Micou & O'Leary (2023). Representational drift as a result of implicit regularization. *Curr. Opin. Neurobiol.*; Masset, Qin & Zavatone-Veth (2022). Drifting neuronal representations: bug or feature? *Biol. Cybern.* 116:253-266.
+- Rübel et al. (2022). The Neurodata Without Borders ecosystem. *eLife* 11:e78362.

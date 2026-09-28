@@ -3,8 +3,9 @@
 Design principles (these are the audit's methodological claims, so they are enforced in code):
 
 * every split is grouped by subject (``StratifiedGroupKFold``), so repeated sessions never leak;
-* hyper-parameters are chosen in an inner grouped CV; Platt scaling is fitted on inner out-of-fold
-  logits and applied to the outer test fold;
+* hyper-parameters are chosen in an inner grouped CV; calibration uses ``CalibratedClassifierCV``
+  (Platt/sigmoid) on the same grouped inner splits, so each inner-fold model is calibrated on its own
+  held-out subjects and the calibrated fold models are averaged for the outer test fold;
 * optional ComBat harmonization is fitted on the training fold only;
 * metrics come with subject-level cluster-bootstrap confidence intervals.
 """
@@ -14,13 +15,15 @@ from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
+import sklearn
 from scipy.special import expit, logit
 from sklearn.base import clone
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss, roc_auc_score
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, cross_val_predict
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -29,6 +32,14 @@ from .roi_features import ComBat
 DEMOGRAPHIC_FEATURES: tuple[str, ...] = ("age", "sex_male", "apoe_e4_count", "mmse")
 
 _EPS = 1e-6
+
+
+def _elastic_net_logistic(l1_ratio: float = 0.5, max_iter: int = 5000) -> LogisticRegression:
+    """Elastic-net logistic regression across scikit-learn versions (``penalty`` deprecated in 1.8)."""
+    major, minor = (int(v) for v in sklearn.__version__.split(".")[:2])
+    if (major, minor) >= (1, 8):
+        return LogisticRegression(solver="saga", l1_ratio=l1_ratio, max_iter=max_iter)
+    return LogisticRegression(penalty="elasticnet", solver="saga", l1_ratio=l1_ratio, max_iter=max_iter)
 
 
 def make_estimator(kind: str) -> tuple[object, dict]:
@@ -40,8 +51,7 @@ def make_estimator(kind: str) -> tuple[object, dict]:
         grid = {"clf__C": [0.1, 1.0, 10.0]}
     elif kind == "roi_enet":
         est = Pipeline([("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler()),
-                        ("clf", LogisticRegression(penalty="elasticnet", solver="saga", max_iter=5000,
-                                                   l1_ratio=0.5))])
+                        ("clf", _elastic_net_logistic())])
         grid = {"clf__C": [0.01, 0.1, 1.0], "clf__l1_ratio": [0.2, 0.5, 0.8]}
     elif kind == "gbm":
         est = HistGradientBoostingClassifier(random_state=0)
@@ -109,10 +119,9 @@ def nested_cv_predict(X: np.ndarray | pd.DataFrame, y: np.ndarray, groups: Seque
             best = gs.best_estimator_
             p_raw = best.predict_proba(Xte)[:, 1]
             if calibrate:
-                p_inner = cross_val_predict(clone(best), Xtr, y[tr], cv=inner_splits_list,
-                                            method="predict_proba")[:, 1]
-                a, b = platt_fit(_safe_logit(p_inner), y[tr])
-                p_cal = platt_apply(p_raw, a, b)
+                cal = CalibratedClassifierCV(clone(best), method="sigmoid", cv=inner_splits_list, ensemble=True)
+                cal.fit(Xtr, y[tr])
+                p_cal = cal.predict_proba(Xte)[:, 1]
             else:
                 p_cal = p_raw
             records.append(pd.DataFrame({"repeat": rep, "fold": fold, "row": te, "y": y[te],

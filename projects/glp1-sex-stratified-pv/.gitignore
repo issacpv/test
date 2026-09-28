@@ -1,0 +1,37 @@
+# data and outputs (never commit FAERS extracts)
+data/
+!data/README.md
+outputs/
+results/
+figures/
+*.jsonl
+*.json.zip
+*.zip
+*.parquet
+*.csv.gz
+*.pkl
+*.npy
+*.npz
+*.h5
+*.nii.gz
+*.edf
+*.nwb
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# environments / secrets
+.env
+.venv/
+venv/
+env/
+*.log
+.DS_Store

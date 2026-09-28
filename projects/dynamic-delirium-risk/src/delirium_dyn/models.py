@@ -65,12 +65,13 @@ def binary_metrics(y: Sequence[int], p: Sequence[float]) -> Dict[str, float]:
     p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
     out = {"n": int(len(y)), "prevalence": float(y.mean()), "auroc": float(roc_auc_score(y, p)) if len(np.unique(y)) == 2 else np.nan, "brier": float(brier_score_loss(y, p))}
     logit = np.log(p / (1 - p))
+    # calibration-in-the-large: log-odds of observed vs mean predicted prevalence (slope fixed at 1)
+    ybar = float(np.clip(y.mean(), 1e-6, 1 - 1e-6))
+    out["cal_intercept_at_slope1"] = float(np.log(ybar / (1 - ybar)) - np.log(p.mean() / (1 - p.mean())))
     try:
         fit = sm.Logit(y, sm.add_constant(logit)).fit(disp=0)
-        out["cal_intercept_at_slope1"] = float(sm.Logit(y, sm.add_constant(logit, has_constant="add")).fit(disp=0).params[0]) if False else float(np.log(y.mean() / (1 - y.mean())) - np.log(p.mean() / (1 - p.mean())))
         out["cal_slope"] = float(fit.params[1])
     except Exception:  # separation / degenerate
-        out["cal_intercept_at_slope1"] = np.nan
         out["cal_slope"] = np.nan
     return out
 
@@ -100,8 +101,13 @@ def sedation_leakage_ablation(
     }
     rows = []
     for name, cols in sets.items():
-        p = cross_validated_predictions(lm[cols], y, g, kind=kind, n_splits=n_splits)
+        if len(cols) == 0:  # prevalence-only baseline (no features): constant prediction
+            p = np.full(len(y), y.mean())
+        else:
+            p = cross_validated_predictions(lm[cols], y, g, kind=kind, n_splits=n_splits)
         m = binary_metrics(y, p)
+        if len(cols) == 0:
+            m["auroc"] = 0.5
         rows.append({"feature_set": name, "n_features": len(cols), **m})
     res = pd.DataFrame(rows).set_index("feature_set")
     denom = res.loc["full", "auroc"] - res.loc["admission_only", "auroc"]

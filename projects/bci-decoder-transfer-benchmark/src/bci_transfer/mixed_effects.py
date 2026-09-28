@@ -131,9 +131,8 @@ def meta_regression(effects: Sequence[float], variances: Sequence[float], X: Opt
         P = W - W @ Xd @ np.linalg.pinv(Xd.T @ W @ Xd) @ Xd.T @ W
         q = float(y @ P @ y)
         df = n - Xd.shape[1]
-        denom = float(np.trace(P @ np.diag(v)) - 0)  # trace(P V) with V = diag(v); equals trace(P)*... general form
-        denom = float(np.trace(P))  # since P is built from W = V^{-1}, trace(P V) = trace(P @ diag(v))
-        denom = float(np.trace(P @ np.diag(v)))
+        # E[Q] = tr(P V) + tau^2 tr(P) = (n - p) + tau^2 tr(P)  for V = diag(v), W = V^-1
+        denom = float(np.trace(P))
         return max(0.0, (q - df) / denom) if denom > 0 else 0.0
 
     tau2 = _tau2(Xm)

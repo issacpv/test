@@ -32,7 +32,7 @@ FEATURE_PATTERNS: Dict[str, str] = {
     "f3": r"rass\s*loc|altered\s*loc|level\s*of\s*consciousness",
     "f4": r"disorgani[sz]ed",
 }
-SUMMARY_PATTERN = r"^delirium\s*assessment$|cam-?icu\s*(result|overall|score)?$"
+SUMMARY_PATTERN = r"^delirium\s*assessment$|cam-?icu\s*(?:result|overall|score)?$"
 RASS_PATTERN = r"richmond|rass"
 CAM_ANY_PATTERN = r"cam-?icu|delirium\s*assessment"
 
@@ -195,10 +195,23 @@ def simulate_stays(
         prev_obs = "normal"
         intime = t0 + pd.Timedelta(days=int(rng.integers(0, 365)))
         for w in range(n_win):
+            # 1) observe the current window (screening is informative: depends on the previous observed state)
+            p_screen = p_screen_base * (0.6 if prev_obs == "coma" else 1.0) * (1.2 if prev_obs == "delirium" else 1.0)
+            screened = rng.random() < min(p_screen, 0.98)
+            observed = state if screened else "unscreened"
+            prev_obs = observed
+            win_rows.append({"stay_id": sid, "window_idx": w, "w_start": intime + pd.Timedelta(hours=w * window_hours),
+                             "w_end": intime + pd.Timedelta(hours=(w + 1) * window_hours), "state": observed, "true_state": state,
+                             "n_cam": int(screened and state != "coma"), "n_rass": 1,
+                             "rass_min": -4.0 if state == "coma" else float(rng.integers(-3, 2)),
+                             "rass_max": np.nan, "rass_mean": np.nan})
+            # 2) sedation given during window w (the exposure measured in the *from* window)
             benzo = int(rng.random() < 0.3)
             propofol = int(rng.random() < 0.4)
             dex = int(rng.random() < 0.2)
-            # transitions
+            sed_rows.append({"stay_id": sid, "window_idx": w, "benzo_mg": 2.0 * benzo * rng.uniform(0.5, 2.0),
+                             "propofol_mg": 800.0 * propofol * rng.uniform(0.5, 2.0), "dex_mcg": 300.0 * dex * rng.uniform(0.5, 2.0)})
+            # 3) transition to the state of window w + 1, driven by the sedation of window w
             if state == "normal":
                 p_del = 0.10 * np.exp(benzo_effect * benzo)
                 p_coma = 0.05 + 0.15 * propofol
@@ -214,21 +227,6 @@ def simulate_stays(
                 p_norm = 0.15
                 u = rng.random()
                 state = "delirium" if u < p_del else ("normal" if u < p_del + p_norm else "coma")
-            # screening (informative)
-            p_screen = p_screen_base * (0.6 if prev_obs == "coma" else 1.0) * (1.2 if prev_obs == "delirium" else 1.0)
-            screened = rng.random() < min(p_screen, 0.98)
-            if state == "coma":
-                observed = "coma" if screened else "unscreened"
-            else:
-                observed = state if screened else "unscreened"
-            prev_obs = observed
-            win_rows.append({"stay_id": sid, "window_idx": w, "w_start": intime + pd.Timedelta(hours=w * window_hours),
-                             "w_end": intime + pd.Timedelta(hours=(w + 1) * window_hours), "state": observed, "true_state": state,
-                             "n_cam": int(screened and state != "coma"), "n_rass": 1,
-                             "rass_min": -4.0 if state == "coma" else float(rng.integers(-3, 2)),
-                             "rass_max": np.nan, "rass_mean": np.nan})
-            sed_rows.append({"stay_id": sid, "window_idx": w, "benzo_mg": 2.0 * benzo * rng.uniform(0.5, 2.0),
-                             "propofol_mg": 800.0 * propofol * rng.uniform(0.5, 2.0), "dex_mcg": 300.0 * dex * rng.uniform(0.5, 2.0)})
         died = rng.random() < 0.1
         win_rows.append({"stay_id": sid, "window_idx": n_win, "w_start": intime + pd.Timedelta(hours=n_win * window_hours), "w_end": pd.NaT,
                          "state": "dead" if died else "discharged", "true_state": "dead" if died else "discharged",

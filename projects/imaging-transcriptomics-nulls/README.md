@@ -76,6 +76,43 @@ Maps and gene lists are recreated from open data or the papers' supplements (`da
 6. **Simulation study**: planted gene-set maps (`simulate_expression`, `make_gene_sets`) with SA-matched noise to estimate FPR/power of each decision rule (H4).
 7. **Application**: HCP myelin map and HCP-Aging age-effect maps run through the recommended protocol; report which categories survive.
 
+### Decision rules evaluated (H4)
+
+| Rule | A category "survives" if | Corresponds to |
+|---|---|---|
+| R1 spatial-only | map-level r significant under one spatial null, category significant under the random-gene null | most current practice |
+| R2 gene-only | category significant under the random-gene null (no spatial null) | classic GSEA |
+| R3 either | significant under the random-gene null *or* the ensemble null | permissive |
+| R4 both (candidate protocol) | map-level r significant under a spatial null *and* category significant under the ensemble null built from the same surrogates | Fulcher et al. (2021) + 2026 preprint recommendation |
+| R5 unanimous | R4 under all five spatial null families | most conservative |
+
+Each rule is scored on simulated pure-noise SA maps (false-positive rate) and planted gene-set maps (power), then applied to the benchmark.
+
+## Quick start (module API)
+
+```python
+import numpy as np, pandas as pd
+from imgtx_nulls import compare_nulls, variogram_surrogates, enrichment_with_nulls
+from imgtx_nulls.maps import load_parcellated_csv, align_map_to_expression
+
+expr = pd.read_parquet("data/expression/glasser360_expression.parquet")      # regions x genes (abagen)
+myelin = load_parcellated_csv("data/maps/hcps1200_myelinmap_glasser.csv")
+y, E = align_map_to_expression(myelin, expr)
+cen = pd.read_csv("data/parcellations/centroids_glasser.csv", index_col=0).loc[y.index]
+lh = cen[cen.hemi == "L"][["x", "y", "z"]].to_numpy(); rh = cen[cen.hemi == "R"][["x", "y", "z"]].to_numpy()
+D = np.load("data/parcellations/geodesic_glasser.npy")
+
+# map-gene correlation under five nulls
+print(compare_nulls(y.to_numpy(), E["PVALB"].to_numpy(), lh, rh, D=D, n_perm=5000))
+
+# category enrichment with random-gene and ensemble (variogram-surrogate) nulls
+surr = variogram_surrogates(y.to_numpy(), D, n_surr=5000)
+enr = enrichment_with_nulls(E, y.to_numpy(), go_sets, null_maps=surr, n_gene_null=5000)
+print(enr.query("q_gene < 0.05 and q_ensemble >= 0.05"))   # enrichments that do not survive the ensemble null
+```
+
+`nulls.neuromaps_nulls` / `nulls.brainsmash_surrogates` give the reference implementations for the validation step.
+
 ## Evaluation and statistics
 
 - p-values with the +1 permutation correction; 5,000 surrogates per null (10,000 for the final protocol); FDR across categories within each analysis; findings declared "surviving" if q < 0.05 under the decision rule being evaluated.

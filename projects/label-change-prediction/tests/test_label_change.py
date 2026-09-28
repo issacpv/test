@@ -75,7 +75,7 @@ def test_quarter_index_roundtrip_and_ic_values():
 def _pair_table(rng, n_q=40, rate_pair=0.5, boost_from=None, boost=6.0):
     qs = np.arange(n_q)
     drug = rng.poisson(200, n_q)
-    ptot = rng.poisson(400, n_q)
+    ptot = rng.poisson(100, n_q)  # E[a] = 200*100/20000 = 1 per quarter
     n = rng.poisson(20000, n_q)
     lam = np.full(n_q, rate_pair)
     if boost_from is not None:
@@ -113,8 +113,8 @@ def test_landmark_dataset_and_model_recover_signal():
         pid = f"p{i}"
         has_event = i < 40
         boost_from = int(rng.integers(8, 25)) if has_event else None
-        tables[pid] = _pair_table(rng, n_q=40, boost_from=boost_from, boost=8.0)
-        events[pid] = float(boost_from + 5) if has_event else np.nan
+        tables[pid] = _pair_table(rng, n_q=40, boost_from=boost_from, boost=20.0)
+        events[pid] = float(boost_from + 6) if has_event else np.nan
         meta[pid] = {"drug": f"d{i % 15}", "class_warning": 0}
     meta_df = pd.DataFrame.from_dict(meta, orient="index")
     ds = lm.build_landmark_dataset(tables, pd.Series(events), landmarks=range(4, 36, 2), horizon=8,
