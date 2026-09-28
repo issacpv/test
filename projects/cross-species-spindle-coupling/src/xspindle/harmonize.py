@@ -31,7 +31,8 @@ class Preset:
     sigma_search: Tuple[float, float] = (8.0, 18.0)
     fixed_sigma: Optional[float] = None          # if set, use this centre frequency instead of the peak
     half_bandwidth: float = 2.0
-    spindle_percentile: float = 95.0
+    spindle_percentile: float = 95.0             # detection threshold (percentile of the envelope)
+    boundary_percentile: float = 80.0            # extent threshold
     spindle_cycles: Tuple[float, float] = (5.0, 30.0)
     spindle_dur_s: Optional[Tuple[float, float]] = None
     so_polarity: str = "negative_first"
@@ -111,10 +112,12 @@ def harmonized_metrics(x: np.ndarray, fs: float, preset: Preset = HARMONIZED, n_
         return out
     if preset.spindle_dur_s is not None:
         spindles = dt.detect_spindles(y, fs2, center, preset.half_bandwidth, preset.spindle_percentile,
-                                      min_dur=preset.spindle_dur_s[0], max_dur=preset.spindle_dur_s[1])
+                                      preset.boundary_percentile, min_dur=preset.spindle_dur_s[0],
+                                      max_dur=preset.spindle_dur_s[1])
     else:
         spindles = dt.detect_spindles(y, fs2, center, preset.half_bandwidth, preset.spindle_percentile,
-                                      min_cycles=preset.spindle_cycles[0], max_cycles=preset.spindle_cycles[1])
+                                      preset.boundary_percentile, min_cycles=preset.spindle_cycles[0],
+                                      max_cycles=preset.spindle_cycles[1])
     so = dt.detect_slow_oscillations(y, fs2, preset.so_band, preset.so_dur_s[0], preset.so_dur_s[1],
                                      preset.so_percentile, polarity=preset.so_polarity)
     phase = cp.so_phase(y, fs2, preset.so_band, invert=(preset.so_polarity == "positive_first"))
@@ -132,7 +135,8 @@ def harmonized_metrics(x: np.ndarray, fs: float, preset: Preset = HARMONIZED, n_
         "frac_coupled": float(len(coupled) / len(spindles)) if len(spindles) else np.nan,
         "n_coupled": int(summ["n"]), "mean_phase": summ["mean_phase"], "mvl": summ["mvl"],
         "mvl_z": summ["mvl_z"], "rayleigh_p": summ["rayleigh_p"],
-        "offset_cycles_mean": summ["offset_cycles_mean"], "offset_s_mean": summ["offset_s_mean"],
+        "offset_cycles_mean": summ["offset_cycles_mean"], "offset_cycles_abs_mean": summ["offset_cycles_abs_mean"],
+        "offset_s_mean": summ["offset_s_mean"],
         "tort_mi": cp.tort_modulation_index(phase, env),
     })
     return out
@@ -174,7 +178,7 @@ def specification_variance(df: pd.DataFrame, metric: str, factors: Iterable[str]
 
 
 def synthetic_nrem(duration_s: float, fs: float, rng: np.random.Generator, so_freq: float = 0.8,
-                   spindle_freq: float = 13.0, coupling_phase: float = 0.0, spindle_prob: float = 0.6,
+                   spindle_freq: float = 13.0, coupling_phase: float = 0.0, spindle_prob: float = 0.25,
                    so_amp: float = 3.0, spindle_amp: float = 1.5, noise_amp: float = 1.0) -> np.ndarray:
     """Synthetic NREM LFP: an SO train with spindles locked to a chosen SO phase, plus 1/f noise.
 

@@ -139,6 +139,7 @@ def detect_spindles(x: np.ndarray, fs: float, center_freq: float, half_bandwidth
                      "peak_amp": float(env[pk]), "freq_hz": freq, "n_cycles": dur * freq})
     df = pd.DataFrame(rows, columns=["start_s", "end_s", "peak_s", "duration_s", "peak_amp", "freq_hz", "n_cycles"])
     df.attrs["threshold"] = float(thr)
+    df.attrs["boundary_threshold"] = float(thr_b)
     df.attrs["band"] = (center_freq - half_bandwidth, center_freq + half_bandwidth)
     return df
 

@@ -52,7 +52,8 @@ def test_qc_metrics():
     poisson = np.sort(rng.uniform(0, T, 2400))
     refractory = poisson[np.concatenate([[True], np.diff(poisson) > 2e-3])]
     assert ag.isi_violations(refractory, T)["n_violations"] == 0
-    assert ag.isi_violations(poisson, T)["isi_violations_ratio"] > 0.5
+    # SpikeInterface/Hill convention: a pure Poisson train without refractory period gives a ratio of ~0.5
+    assert 0.35 < ag.isi_violations(poisson, T)["isi_violations_ratio"] < 0.7
     assert ag.presence_ratio(poisson, T) == 1.0
     assert ag.presence_ratio(poisson[poisson < T / 2], T) == pytest.approx(0.5, abs=0.02)
     amps = rng.normal(100, 15, 5000)
@@ -68,14 +69,16 @@ def test_downstream_tuning_and_responsiveness():
     rng = np.random.default_rng(3)
     dirs = np.tile(np.arange(0, 360, 45), 15)
     onsets = np.arange(len(dirs)) * 2.0 + 1.0
-    tuned = ds.synthetic_tuned_unit(rng, onsets, dirs, pref_deg=90.0, peak_rate=30.0, base_rate=1.0)
+    tuned = ds.synthetic_tuned_unit(rng, onsets, dirs, pref_deg=90.0, peak_rate=30.0, base_rate=1.0, kappa=4.0)
     flat = ds.synthetic_tuned_unit(rng, onsets, dirs, pref_deg=0.0, peak_rate=0.0, base_rate=5.0)
     tc = ds.tuning_curve(tuned, onsets, dirs, (0.0, 0.5))
     sel = ds.orientation_selectivity(tc["mean"].to_numpy(), tc.index.to_numpy())
-    assert sel["osi_vec"] > 0.5 and sel["dsi_vec"] > 0.5
+    # a single-lobed direction-tuned unit: high ratio OSI and vector DSI, moderate vector OSI (broad lobe)
+    assert sel["osi_ratio"] > 0.7 and sel["dsi_vec"] > 0.5 and sel["osi_vec"] > 0.3
     assert abs(sel["pref_dir_deg"] - 90.0) < 30
     tc2 = ds.tuning_curve(flat, onsets, dirs, (0.0, 0.5))
-    assert ds.orientation_selectivity(tc2["mean"].to_numpy(), tc2.index.to_numpy())["osi_vec"] < 0.3
+    sel2 = ds.orientation_selectivity(tc2["mean"].to_numpy(), tc2.index.to_numpy())
+    assert sel2["osi_vec"] < 0.3 and sel2["osi_ratio"] < 0.35
     assert ds.responsiveness_permutation(tuned, onsets, n_perm=200)["p"] < 0.01
     assert ds.responsiveness_permutation(flat, onsets, n_perm=200)["p"] > 0.05
 

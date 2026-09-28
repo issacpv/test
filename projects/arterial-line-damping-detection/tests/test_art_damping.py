@@ -20,23 +20,20 @@ def true_abp():
     return transfer.synthetic_true_abp(fs=FS, n_beats=50, hr=80, seed=0)
 
 
-def _sbp_dbp(abp, onsets):
-    f = sqi.beat_damping_features(abp, FS, onsets)
-    return f["sbp"].median(), f["dbp"].median(), f["map"].median(), f
+def _measured(true_abp, fn, zeta):
+    y = transfer.apply_catheter_system(true_abp.abp, FS, fn, zeta)
+    return y, sqi.beat_damping_features(y, FS, sqi.detect_onsets(y, FS))
 
 
 def test_underdamping_overestimates_and_overdamping_underestimates_sbp(true_abp):
-    sbp0, dbp0, map0, _ = _sbp_dbp(true_abp.abp, true_abp.onsets)
-    under = transfer.apply_catheter_system(true_abp.abp, FS, fn_hz=8.0, zeta=0.15)
-    over = transfer.apply_catheter_system(true_abp.abp, FS, fn_hz=6.0, zeta=1.5)
-    sbp_u, dbp_u, map_u, _ = _sbp_dbp(under, true_abp.onsets)
-    sbp_o, dbp_o, map_o, _ = _sbp_dbp(over, true_abp.onsets)
-    assert sbp_u > sbp0 + 3 and dbp_u <= dbp0 + 1
-    assert sbp_o < sbp0 - 3 and dbp_o >= dbp0 - 1
-    assert abs(map_u - map0) < 2.5 and abs(map_o - map0) < 2.5  # MAP is preserved
-    adequate = transfer.apply_catheter_system(true_abp.abp, FS, fn_hz=30.0, zeta=0.5)
-    sbp_a, _, _, _ = _sbp_dbp(adequate, true_abp.onsets)
-    assert abs(sbp_a - sbp0) < 2
+    f0 = sqi.beat_damping_features(true_abp.abp, FS, sqi.detect_onsets(true_abp.abp, FS))
+    _, fu = _measured(true_abp, 8.0, 0.15)
+    _, fo = _measured(true_abp, 6.0, 1.5)
+    _, fa = _measured(true_abp, 30.0, 0.5)
+    assert fu["sbp"].median() > f0["sbp"].median() + 3 and fu["dbp"].median() <= f0["dbp"].median() + 1
+    assert fo["sbp"].median() < f0["sbp"].median() - 3 and fo["dbp"].median() >= f0["dbp"].median() - 1
+    assert abs(fu["map"].median() - f0["map"].median()) < 2.5 and abs(fo["map"].median() - f0["map"].median()) < 2.5
+    assert abs(fa["sbp"].median() - f0["sbp"].median()) < 2
 
 
 def test_gardner_adequacy_rules():
@@ -49,56 +46,63 @@ def test_gardner_adequacy_rules():
         transfer.catheter_system(100.0, 0.5, FS)
 
 
-@pytest.mark.parametrize("fn,zeta", [(12.0, 0.3), (25.0, 0.2), (15.0, 0.5)])
-def test_flush_ringing_recovers_fn_and_zeta(fn, zeta):
+@pytest.mark.parametrize("fn,zeta", [(12.0, 0.3), (25.0, 0.2), (15.0, 0.5), (8.0, 0.15)])
+def test_flush_fit_recovers_fn_and_zeta(fn, zeta):
     x = transfer.synthetic_flush(FS, fn, zeta, baseline=80.0)
     events = flush.detect_flush_events(x, FS)
     assert len(events) == 1
-    r = flush.ringing_parameters(x, FS, events[0][1])
-    assert r.n_extrema >= 2
-    assert r.fn_hz == pytest.approx(fn, rel=0.2)
-    assert r.zeta == pytest.approx(zeta, abs=0.15)
+    r = flush.fit_flush_response(x, FS, *events[0])
+    assert r.r2 > 0.95 and r.n_extrema >= 2
+    assert r.fn_hz == pytest.approx(fn, rel=0.15)
+    assert r.zeta == pytest.approx(zeta, abs=0.1)
+    assert r.baseline == pytest.approx(80.0, abs=3.0) and r.plateau == pytest.approx(300.0, rel=0.05)
     assert r.adequacy == transfer.gardner_adequacy(fn, zeta)
 
 
-def test_overdamped_flush_has_no_ringing_and_labels_propagate(true_abp):
+def test_overdamped_flush_and_pulsatile_background(true_abp):
     x = transfer.synthetic_flush(FS, 8.0, 1.5, baseline=80.0)
     ev = flush.detect_flush_events(x, FS)
-    r = flush.ringing_parameters(x, FS, ev[0][1])
-    assert r.adequacy == "overdamped" and np.isnan(r.zeta)
-    # flush embedded in a pulsatile record is still detected
+    r = flush.fit_flush_response(x, FS, *ev[0])
+    assert r.adequacy == "overdamped" and r.zeta > transfer.ZETA_MAX_ADEQUATE and r.n_extrema == 0
+    # flush embedded in a pulsatile record is still detected and labelled
     n = int(3.6 * FS)
     base = true_abp.abp[:n]
     y = transfer.synthetic_flush(FS, 20.0, 0.25, baseline=base)
     rec = np.r_[true_abp.abp[:n], y, true_abp.abp[n:2 * n]]
     labels = flush.flush_labels(rec, FS)
-    assert len(labels) == 1 and labels["adequacy"].iloc[0] in ("adequate", "underdamped")
+    assert len(labels) == 1
+    assert labels["adequacy"].iloc[0] in ("adequate", "underdamped")
+    assert labels["fn_hz"].iloc[0] == pytest.approx(20.0, rel=0.35)
     grid = np.arange(0, 60, 1.0)
     prop = flush.propagate_labels(labels, grid, max_age_s=30)
     t_rel = labels["t_release_s"].iloc[0]
     assert (prop[grid < t_rel] == "unlabelled").all() and (prop[(grid >= t_rel) & (grid <= t_rel + 30)] != "unlabelled").all()
+    assert flush.detect_flush_events(true_abp.abp, FS) == []
 
 
 def test_flush_free_features_separate_damping_classes(true_abp):
-    onsets = true_abp.onsets
-    f_ok = sqi.beat_damping_features(transfer.apply_catheter_system(true_abp.abp, FS, 30.0, 0.5), FS, onsets)
-    f_under = sqi.beat_damping_features(transfer.apply_catheter_system(true_abp.abp, FS, 8.0, 0.15), FS, onsets)
-    f_over = sqi.beat_damping_features(transfer.apply_catheter_system(true_abp.abp, FS, 6.0, 1.5), FS, onsets)
-    assert set(sqi.FEATURE_NAMES) <= set(f_ok.columns) and f_ok["plausible"].mean() > 0.9
-    assert f_under["hf_ratio"].median() > f_ok["hf_ratio"].median()
-    assert f_under["dpdt_max_norm"].median() > f_ok["dpdt_max_norm"].median() > f_over["dpdt_max_norm"].median()
-    assert f_over["rise_time"].median() > f_ok["rise_time"].median()
+    ya, fa = _measured(true_abp, 30.0, 0.5)
+    yu, fu = _measured(true_abp, 8.0, 0.15)
+    yo, fo = _measured(true_abp, 6.0, 1.5)
+    assert set(sqi.BEAT_FEATURES) <= set(fa.columns) and fa["plausible"].mean() > 0.9
+    assert fu["overshoot"].median() > fa["overshoot"].median() > fo["overshoot"].median()
+    assert fu["dpdt_max_norm"].median() > fa["dpdt_max_norm"].median() > fo["dpdt_max_norm"].median()
+    assert fo["rise_time"].median() > fa["rise_time"].median()
+    sa, su = sqi.spectral_features(ya, FS), sqi.spectral_features(yu, FS)
+    assert su["spectral_peakiness"] > sa["spectral_peakiness"]
     # classifier: windows from several synthetic records, grouped CV
     Xs, ys, gs = [], [], []
     for seed in range(6):
         rec = transfer.synthetic_true_abp(fs=FS, n_beats=40, hr=70 + 5 * seed, seed=seed)
         for cls, (fn, z) in enumerate([(30.0, 0.5), (8.0, 0.15)]):
-            beats = sqi.beat_damping_features(transfer.apply_catheter_system(rec.abp, FS, fn, z), FS, rec.onsets)
-            w = sqi.window_features(beats, FS, window_s=5.0)
+            y = transfer.apply_catheter_system(rec.abp, FS, fn, z)
+            beats = sqi.beat_damping_features(y, FS, sqi.detect_onsets(y, FS))
+            w = sqi.window_features(y, FS, beats, window_s=5.0)
             Xs.append(w)
             ys.append(np.full(len(w), cls))
             gs.append(np.full(len(w), seed))
     X, y, g = pd.concat(Xs, ignore_index=True), np.concatenate(ys), np.concatenate(gs)
+    assert set(sqi.FEATURE_NAMES) <= set(X.columns)
     assert sqi.cv_auroc(X, y, g, n_splits=3) > 0.9
     clf = sqi.fit_damping_classifier(X, y)
     assert clf.predict(X[list(sqi.FEATURE_NAMES)]).shape == (len(X),)

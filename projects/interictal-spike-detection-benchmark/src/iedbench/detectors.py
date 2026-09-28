@@ -31,18 +31,24 @@ def robust_scale(X: np.ndarray) -> np.ndarray:
 
 
 def envelope_detector(X: np.ndarray, fs: float, channel_names: Optional[Sequence[str]] = None,
-                      band: Tuple[float, float] = (10.0, 60.0), k: float = 3.5, win_s: float = 5.0,
-                      min_dur_ms: float = 20.0, max_dur_ms: float = 200.0) -> List[Event]:
-    """Log-envelope z-score detector (in the spirit of Janca et al., 2015).
+                      band: Tuple[float, float] = (5.0, 60.0), k: float = 4.0, win_s: float = 5.0,
+                      min_dur_ms: float = 20.0, max_dur_ms: float = 200.0, log_envelope: bool = False) -> List[Event]:
+    """Envelope z-score detector (in the spirit of Janca et al., 2015).
 
-    Band-pass -> Hilbert envelope -> log -> running mean / SD over ``win_s`` -> z-score;
-    contiguous runs with z > ``k`` and duration within [min, max] become events with
-    score = max z.
+    Band-pass -> Hilbert envelope (optionally log-transformed) -> block-wise robust
+    z-score (median / MAD over ``win_s`` blocks, interpolated) -> contiguous runs with
+    z > ``k`` and duration within [min, max] become events with score = max z.
+
+    Defaults were chosen on synthetic 40-ms spikes in 1/f background: the linear
+    envelope in 5-60 Hz separates spikes (z >= 5) from background (0.1% of samples
+    above 4) far better than the log-envelope, whose heavy lower tail inflates the scale.
     """
     X = np.asarray(X, float)
     names = list(channel_names) if channel_names is not None else [f"ch{i}" for i in range(X.shape[0])]
     xf = bandpass(X, fs, *band)
-    env = np.log(np.abs(sps.hilbert(xf, axis=-1)) + 1e-9)
+    env = np.abs(sps.hilbert(xf, axis=-1))
+    if log_envelope:
+        env = np.log(env + 1e-9)
     z = blockwise_robust_z(env, fs, win_s)
     return events_from_mask(z > k, fs, names, scores=z, min_dur_s=min_dur_ms / 1000.0, max_dur_s=max_dur_ms / 1000.0)
 

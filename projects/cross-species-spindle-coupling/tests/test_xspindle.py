@@ -29,10 +29,11 @@ def test_sigma_peak_is_individualised(synth):
 def test_spindle_and_so_detection_counts(synth):
     x, fs = synth
     spin = dt.detect_spindles(x, fs, center_freq=13.0, thresh_percentile=95.0)
-    # ~0.6 * 0.8 Hz * 180 s = ~86 spindles inserted; detector should find most of them
-    assert 50 <= len(spin) <= 110
+    # ~0.25 * 0.8 Hz * 180 s = ~36 spindles inserted; detector should find most of them
+    assert 20 <= len(spin) <= 50
     assert (spin["freq_hz"].between(11.0, 15.0)).mean() > 0.8
     assert (spin["n_cycles"] >= 5).all()
+    assert spin.attrs["boundary_threshold"] <= spin.attrs["threshold"]
     so = dt.detect_slow_oscillations(x, fs, band=(0.3, 1.5), amp_percentile=50.0)
     assert len(so) > 30
     assert abs(so["duration_s"].median() - 1.25) < 0.25
@@ -44,15 +45,15 @@ def test_coupling_phase_recovered(synth):
     so = dt.detect_slow_oscillations(x, fs, band=(0.3, 1.5), amp_percentile=50.0)
     phase = cp.so_phase(x, fs, band=(0.3, 1.5))
     coupled = cp.couple_spindles_to_so(spin, so, phase, fs)
-    assert len(coupled) > 30
+    assert len(coupled) > 15
     stats = cp.circular_stats(coupled["phase"].to_numpy())
     assert abs(cp.circular_distance(stats["mean_phase"], 0.0)) < 0.5
     assert stats["mvl"] > 0.7
     assert stats["rayleigh_p"] < 1e-6
     null = cp.surrogate_mvl(phase, stats["n"], n_perm=100, rng=np.random.default_rng(2))
     assert cp.mvl_zscore(stats["mvl"], null) > 5
-    # offsets: spindle peaks sit ~half a cycle after the trough (i.e. on the peak)
-    assert abs(abs(coupled["offset_cycles"].mean()) - 0.5) < 0.2
+    # offsets: spindle peaks sit ~half a cycle from the nearest trough (i.e. on the peak)
+    assert abs(coupled["offset_cycles"].abs().mean() - 0.5) < 0.15
 
 
 def test_shifted_coupling_phase_is_detected():

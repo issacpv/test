@@ -129,5 +129,6 @@ def coupling_summary(coupled: pd.DataFrame, phase: np.ndarray, fs: float, n_perm
         stats["mvl_z"] = np.nan
         stats["mvl_null_mean"] = np.nan
     stats["offset_cycles_mean"] = float(coupled["offset_cycles"].mean()) if len(coupled) else np.nan
+    stats["offset_cycles_abs_mean"] = float(coupled["offset_cycles"].abs().mean()) if len(coupled) else np.nan
     stats["offset_s_mean"] = float(coupled["offset_s"].mean()) if len(coupled) else np.nan
     return stats

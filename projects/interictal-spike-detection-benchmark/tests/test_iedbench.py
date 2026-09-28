@@ -65,9 +65,10 @@ def test_match_events_and_sweep():
 def test_envelope_and_template_detectors_find_planted_spikes():
     X, ref, names = synthetic_record()
     ref0 = [r for r in ref if r.channel == "c0"]
-    ev = detectors.envelope_detector(X, 512.0, names, k=3.0)
+    ev = detectors.envelope_detector(X, 512.0, names, k=4.0)
     m = events.match_events([e for e in ev if e.channel == "c0"], ref0, tol_s=0.1)
     assert m["recall"] > 0.7
+    assert events.fp_per_minute(m["fp"], 60.0) < 10.0
     ev_t = detectors.template_detector(X, 512.0, names, thr=5.0)
     m_t = events.match_events([e for e in ev_t if e.channel == "c0"], ref0, tol_s=0.1)
     assert m_t["recall"] > 0.8 and m_t["precision"] > 0.5
