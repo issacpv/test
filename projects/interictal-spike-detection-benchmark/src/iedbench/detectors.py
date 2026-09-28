@@ -88,23 +88,30 @@ def synthetic_spike_template(fs: float, spike_ms: float = 40.0, slow_ms: float =
 
 
 def template_detector(X: np.ndarray, fs: float, channel_names: Optional[Sequence[str]] = None,
-                      template: Optional[np.ndarray] = None, thr: float = 4.0, refractory_ms: float = 80.0) -> List[Event]:
-    """Normalized matched filter: z-scored cross-correlation with a spike + slow-wave template."""
+                      template: Optional[np.ndarray] = None, thr: float = 0.6, refractory_ms: float = 80.0,
+                      band: Tuple[float, float] = (5.0, 60.0)) -> List[Event]:
+    """Normalized matched filter on pre-whitened data.
+
+    Signal and template are band-passed (``band``, a cheap pre-whitening that removes the
+    1/f background which otherwise correlates with the template's slow-wave part), then
+    the normalized cross-correlation (NCC, bounded in [-1, 1]) is computed with a local
+    energy normalization.  Peaks with NCC >= ``thr`` become events; ``score`` = NCC.
+    """
     X = np.asarray(X, float)
     names = list(channel_names) if channel_names is not None else [f"ch{i}" for i in range(X.shape[0])]
     tpl = synthetic_spike_template(fs) if template is None else np.asarray(template, float)
+    peak_offset = int(np.argmax(tpl))
+    tpl = bandpass(tpl, fs, *band)
     tpl = (tpl - tpl.mean()) / (np.linalg.norm(tpl) + 1e-12)
     L = tpl.size
-    peak_offset = int(np.argmax(tpl))
+    Xf = bandpass(X, fs, *band)
     out: List[Event] = []
     for c in range(X.shape[0]):
-        x = X[c]
+        x = Xf[c]
         xc = np.correlate(x, tpl, mode="valid")
-        # local energy normalisation
         e = np.sqrt(np.convolve(x ** 2, np.ones(L), mode="valid") + 1e-12)
         ncc = xc / e
-        z = (ncc - np.median(ncc)) / (1.4826 * np.median(np.abs(ncc - np.median(ncc))) + 1e-12)
-        pk, props = sps.find_peaks(z, height=thr, distance=max(1, int(refractory_ms / 1000.0 * fs)))
+        pk, props = sps.find_peaks(ncc, height=thr, distance=max(1, int(refractory_ms / 1000.0 * fs)))
         for p, h in zip(pk, props["peak_heights"]):
             out.append(Event(names[c], (p + peak_offset) / fs, L / fs, float(h)))
     return out

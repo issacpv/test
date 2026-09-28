@@ -75,8 +75,12 @@ def cace_wald(df: pd.DataFrame, y: str = "y", z: str = "z", engaged: str = "enga
     """Wald / IV estimate of the effect among would-be engagers (one-sided non-compliance).
 
     Uses the ANCOVA ITT numerator and the engagement rate in the treated arm as
-    denominator (controls have no access, so the exclusion restriction holds by
-    design).  Delta-method SE treats the denominator as estimated.
+    denominator.  Controls have no access, so there are no "always-takers";
+    the remaining exclusion restriction - that being *offered* the app without
+    engaging has no effect - is the substantive assumption, and it fails for
+    partial engagement (see ``simulate_ipd(nonengager_effect=...)``).  The
+    principal-score estimator does not need it.  Delta-method SE treats the
+    denominator as estimated.
     """
     it = itt(df, y, z, baseline, covariates)
     tr = df[df[z] == 1]

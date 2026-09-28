@@ -19,8 +19,14 @@ DENDRITE_TYPES = (BASAL, APICAL)
 
 def read_swc(source: Union[str, Path]) -> Dict[str, np.ndarray]:
     """Parse an SWC path or text into arrays with ids remapped to 0..n-1."""
-    p = Path(str(source))
-    text = p.read_text() if p.exists() else str(source)
+    text = str(source)
+    if "\n" not in text and len(text) < 4096:
+        try:
+            p = Path(text)
+            if p.exists():
+                text = p.read_text()
+        except OSError:
+            pass
     rows = []
     for line in text.splitlines():
         s = line.strip()

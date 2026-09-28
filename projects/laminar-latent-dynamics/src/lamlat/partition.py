@@ -102,6 +102,7 @@ def synthetic_encoding_data(n_time: int, rng: np.random.Generator, n_stim_units:
     cond = rng.integers(0, n_conditions, size=n_time)
     Xs = onehot_design(np.arange(n_conditions), cond, levels=list(range(n_conditions)))
     run = np.convolve(rng.normal(size=n_time), np.ones(20) / 20, mode="same")
+    run = (run - run.mean()) / run.std()
     Xb = lagged_design(run, [0, 1, 2])
     Ys = Xs @ rng.normal(size=(n_conditions, n_stim_units)) + noise * rng.normal(size=(n_time, n_stim_units))
     Yb = np.outer(run, rng.normal(size=n_behav_units)) * 3 + noise * rng.normal(size=(n_time, n_behav_units))

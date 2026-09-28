@@ -52,7 +52,7 @@ def test_confusion_and_kappa():
     assert np.isnan(rb_missing[4]) and agreement.confusion(rb_missing, exp).n == 7
     df = pd.DataFrame({"Cardiomegaly_report": rep, "Cardiomegaly_expert": exp, "patient": [1, 1, 2, 2, 3, 3, 4, 4]})
     tab = agreement.per_finding_agreement(df, ["Cardiomegaly"])
-    assert tab.loc["Cardiomegaly", "tp"] == 4
+    assert tab.loc["Cardiomegaly", "tp"] == 3 and tab.loc["Cardiomegaly", "n"] == 8
     est, lo, hi = agreement.cluster_bootstrap_ci(
         df, lambda d: agreement.confusion(agreement.resolve_report_labels(d["Cardiomegaly_report"].to_numpy()),
                                           d["Cardiomegaly_expert"].to_numpy()).sensitivity,
@@ -100,7 +100,10 @@ def test_noise_injection_estimation_and_fairness_simulation():
                                                   classifier_auc=0.9, n_rep=20, severity_dependence=3.0, rng=rng)
     assert sim1["gap_noisy_labels"] > sim1["gap_true_labels"] + 0.04
     assert sim1["fnr_noisy_by_group"]["B"] < sim1["fnr_noisy_by_group"]["A"]   # under-reported group looks *better*
-    assert sim1["auc_noisy"] < sim1["auc_true"]
+    # random (class-conditional) flips always pull measured AUC toward 0.5 ...
+    assert sim0["auc_noisy"] < sim0["auc_true"]
+    # ... whereas severity-dependent non-mention removes the hard cases and can *inflate* measured AUC
+    assert sim1["auc_noisy"] > sim0["auc_noisy"]
     # mechanism 2: training on differentially noisy labels produces a real FNR gap against expert labels
     tr = noise_simulation.simulate_training_under_noise(6000, 4000, 0.3, fnr, {"A": 0.0, "B": 0.0},
                                                         n_rep=5, rng=rng)

@@ -41,7 +41,7 @@ def test_simulation_structure(ipd):
 
 def test_itt_recovers_full_data_effect(ipd):
     full = ipd.assign(y=ipd["y_full"])
-    truth = 0.3 + 0.3 * ipd["S"].mean()
+    truth = (0.3 + 0.3) * ipd["S"].mean()  # only engagers benefit; exclusion restriction holds
     est = itt(full)
     assert abs(est["estimate"] - truth) < 0.08
     assert est["ci_low"] < est["estimate"] < est["ci_high"]

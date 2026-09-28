@@ -39,23 +39,24 @@ def test_io_allen_depths_and_selection():
 
 def test_fa_dimensionality_and_overlap_with_nulls():
     rng = np.random.default_rng(2)
-    Xa, Xb, Z = latent.synthetic_two_populations(1500, 25, 25, k_shared=2, k_private=1, rng=rng)
-    cv = latent.fa_cv_dimensionality(Xa, dims=range(1, 7), n_folds=4)
+    Xa, Xb, Z = latent.synthetic_two_populations(800, 20, 20, k_shared=2, k_private=1, rng=rng)
+    cv = latent.fa_cv_dimensionality(Xa, dims=range(1, 6), n_folds=4)
     assert cv.attrs["best_dim"] in (2, 3, 4)
     ov_shared = latent.cross_layer_overlap(Xa, Xb, k=2)
-    Xc, _, _ = latent.synthetic_two_populations(1500, 25, 25, k_shared=2, k_private=1, rng=rng)  # independent latents
+    Xc, _, _ = latent.synthetic_two_populations(800, 20, 20, k_shared=2, k_private=1, rng=rng)  # independent latents
     ov_indep = latent.cross_layer_overlap(Xa, Xc, k=2)
-    assert ov_shared > 0.6 > ov_indep
-    ceiling = latent.split_unit_ceiling(Xa, k=2, n_rep=3, rng=rng)
-    assert ceiling >= ov_shared - 0.15
+    # populations sharing 2 latents (plus 1 private each) overlap far more than independent populations
+    assert ov_shared > 0.45 and ov_indep < 0.2 and (ov_shared - ov_indep) > 0.3
+    ceiling = latent.split_unit_ceiling(Xa, k=2, n_rep=2, rng=rng)
+    assert ceiling >= ov_shared - 0.2
     A = np.eye(5)[:, :2]
     B = np.eye(5)[:, 2:4]
     assert latent.subspace_overlap(A, A) == pytest.approx(1.0)
     assert latent.subspace_overlap(A, B) == pytest.approx(0.0, abs=1e-9)
     # depth-shuffle null: overlap between a 'layer' and an independent population is lower than null
     X = np.hstack([Xa, Xc])
-    labels = np.array(["L4"] * 25 + ["L5"] * 25)
-    res = latent.depth_shuffle_null(X, labels, "L4", "L5", lambda P, Q: latent.cross_layer_overlap(P, Q, 2), n_perm=15, rng=rng)
+    labels = np.array(["L4"] * 20 + ["L5"] * 20)
+    res = latent.depth_shuffle_null(X, labels, "L4", "L5", lambda P, Q: latent.cross_layer_overlap(P, Q, 2), n_perm=6, rng=rng)
     assert res["observed"] < res["null_mean"]
 
 

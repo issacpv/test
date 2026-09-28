@@ -35,10 +35,11 @@ def synthetic_neonatal_eeg(pma: float, seconds: float = 120.0, n_ch: int = 4, se
         tt += burst + rng.exponential(ibi_mean) * (1 - continuity) * 2
     for c in range(n_ch):
         noise = rng.normal(size=n)
-        slow = np.cumsum(rng.normal(size=n))
-        slow = (slow - slow.mean()) / (slow.std() + 1e-9)
-        sig = 8.0 * noise + 40.0 * slow * (1.0 + 0.5 * (45 - eff) / 10)
-        jitter = int(rng.integers(0, int(FS * (0.6 - 0.05 * (eff - 35.0)))) )
+        f_delta = 1.0 + 0.1 * (eff - 35.0)  # delta rhythm slightly faster with maturation
+        delta = np.sin(2 * np.pi * f_delta * t + rng.uniform(0, 2 * np.pi)) + 0.5 * np.sin(2 * np.pi * (2 * f_delta + 0.3) * t)
+        amp = 50.0 * (1.0 + 0.3 * (45.0 - eff) / 10.0)  # higher-amplitude bursts when younger
+        sig = 10.0 * noise + amp * delta
+        jitter = int(rng.integers(0, max(2, int(FS * (0.6 - 0.05 * (eff - 35.0))))))
         m = np.roll(mask, jitter if c % 2 else 0)
         X[c] = np.where(m, sig, 3.0 * noise)
     return X

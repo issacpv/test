@@ -68,6 +68,8 @@ def surrogate_features(bins: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame(index=bins.index)
     out["rr_measured"] = bins["rr_measured"]
     out["rr_excess"] = bins["rr_measured"] - bins["rr_set"].fillna(bins["rr_measured"])
+    rr_mon = bins["rr_monitor"] if "rr_monitor" in bins else bins["rr_measured"]
+    out["rr_monitor_excess"] = (rr_mon - bins["rr_measured"]).clip(lower=0)
     out["cv_vt"] = bins["cv_vt_insp"]
     out["cv_pip"] = bins["cv_pip"]
     out["cv_rr"] = bins["cv_rr_inst"]
@@ -77,9 +79,16 @@ def surrogate_features(bins: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def trigger_excess_index(X: pd.DataFrame) -> pd.Series:
+    """Simple physiologic composite: ineffective efforts (monitor minus ventilator rate) plus extra
+    delivered breaths above the set rate (double / auto-triggering); breaths per minute."""
+    return X["rr_monitor_excess"].fillna(0) + X["rr_excess"].clip(lower=0).fillna(0)
+
+
 def fit_surrogate_model(X: pd.DataFrame, ai_true: np.ndarray, seed: int = 0) -> HistGradientBoostingRegressor:
     m = np.isfinite(ai_true)
-    reg = HistGradientBoostingRegressor(max_depth=3, learning_rate=0.05, max_iter=200, random_state=seed)
+    reg = HistGradientBoostingRegressor(max_depth=3, learning_rate=0.05, max_iter=200, min_samples_leaf=5,
+                                        random_state=seed)
     return reg.fit(X.loc[m, list(SURROGATE_FEATURES)], ai_true[m])
 
 
@@ -95,7 +104,8 @@ def evaluate_surrogate(model, X: pd.DataFrame, ai_true: np.ndarray, threshold: f
 
 def charted_window_features(chart: pd.DataFrame, window_s: float = 3600.0, t_col: str = "t_s") -> pd.DataFrame:
     """Same surrogate features from a *charted* long-to-wide table with columns
-    ``t_s, rr_total, rr_set, vt_obs, pip, minute_volume`` sampled irregularly (HiRID 2 min, eICU/MIMIC ~hourly).
+    ``t_s, rr_total, rr_set, vt_obs, pip, minute_volume`` and optionally ``rr_monitor`` (bedside-monitor
+    impedance rate), sampled irregularly (HiRID 2 min, eICU/MIMIC ~hourly).
     Windows need >= 3 charted rows for the variability features."""
     w = np.floor(chart[t_col].to_numpy() / window_s).astype(int)
     g = chart.assign(_w=w).groupby("_w")
@@ -103,6 +113,7 @@ def charted_window_features(chart: pd.DataFrame, window_s: float = 3600.0, t_col
         "t_center": (g["_w"].first() + 0.5) * window_s,
         "n_rows": g.size(),
         "rr_measured": g["rr_total"].mean(),
+        "rr_monitor": g["rr_monitor"].mean() if "rr_monitor" in chart else g["rr_total"].mean(),
         "rr_set": g["rr_set"].median(),
         "mean_vt_insp": g["vt_obs"].mean(),
         "cv_vt_insp": g["vt_obs"].std(ddof=0) / g["vt_obs"].mean(),

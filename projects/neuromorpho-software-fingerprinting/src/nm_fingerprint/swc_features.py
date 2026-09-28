@@ -27,8 +27,14 @@ def read_swc(source: Union[str, Path, io.TextIOBase]) -> Dict[str, np.ndarray]:
     if isinstance(source, io.TextIOBase):
         text = source.read()
     else:
-        p = Path(str(source))
-        text = p.read_text() if p.exists() else str(source)
+        text = str(source)
+        if "\n" not in text and len(text) < 4096:  # a path, not SWC text
+            try:
+                p = Path(text)
+                if p.exists():
+                    text = p.read_text()
+            except OSError:
+                pass
     rows: List[List[float]] = []
     raw_lines: List[str] = []
     for line in text.splitlines():

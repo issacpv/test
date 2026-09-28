@@ -87,8 +87,11 @@ def test_surrogates_track_true_asynchrony_index():
             rows.append(X.assign(scenario=name, seed=seed))
             ys.append(bins["ai_true"].to_numpy())
     X, y = pd.concat(rows, ignore_index=True), np.concatenate(ys)
-    ok = np.isfinite(y) & np.isfinite(X["rr_excess"].to_numpy())
-    assert spearmanr(X.loc[ok, "rr_excess"], y[ok]).correlation > 0.5
+    composite = surrogates.trigger_excess_index(X).to_numpy()
+    ok = np.isfinite(y) & np.isfinite(composite)
+    assert spearmanr(composite[ok], y[ok]).correlation > 0.5
+    ie_rows = X["scenario"] == "ineffective_efforts"
+    assert X.loc[ie_rows, "rr_monitor_excess"].mean() > X.loc[~ie_rows, "rr_monitor_excess"].mean() + 2
     tr = X["seed"].to_numpy() < 2
     model = surrogates.fit_surrogate_model(X[tr], y[tr])
     ev = surrogates.evaluate_surrogate(model, X[~tr], y[~tr])

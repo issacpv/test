@@ -26,6 +26,7 @@ def simulate_ipd(
     engagement_effect: float = 0.3,
     engagement_confounding: float = 1.0,
     hte_severity: float = 0.2,
+    nonengager_effect: float = 0.0,
     trial_sd: float = 0.15,
     dropout_base: float = -1.5,
     mnar_strength: float = 0.6,
@@ -34,6 +35,13 @@ def simulate_ipd(
     """Return one row per participant with columns
 
     ``trial, id, z, baseline, age, sex, motivation, S, engaged, dose, y_full, dropout, y``.
+
+    Treatment effects: engagers (``S = 1``) offered the app gain
+    ``ate + engagement_effect``; non-engagers offered the app gain
+    ``nonengager_effect`` (0 by default, i.e. the exclusion restriction behind
+    the Wald/CACE estimator holds - set it > 0 to study its violation, which
+    principal-score estimation tolerates); everyone in the treated arm is
+    subject to the trial modifier and the severity interaction.
 
     ``y`` is ``y_full`` with dropouts set to NaN.  ``engaged`` is ``S`` for
     treated participants and 0 for controls (never offered the app).
@@ -54,7 +62,15 @@ def simulate_ipd(
         S = (lat > 0).astype(int)  # would engage if treated
         engaged = S * z
         dose = np.where(engaged == 1, rng.poisson(8, n) + 3, np.where(z == 1, rng.poisson(1, n), 0))
-        y_full = u_t + 0.5 * baseline + 0.4 * motivation + z * (ate + d_t + hte_severity * baseline) + z * S * engagement_effect + rng.normal(0, 1, n)
+        y_full = (
+            u_t
+            + 0.5 * baseline
+            + 0.4 * motivation
+            + z * (d_t + hte_severity * baseline)
+            + z * S * (ate + engagement_effect)
+            + z * (1 - S) * nonengager_effect
+            + rng.normal(0, 1, n)
+        )
         drop_logit = dropout_base - mnar_strength * y_full + 0.6 * z * (1 - S)
         dropout = (rng.uniform(size=n) < 1 / (1 + np.exp(-drop_logit))).astype(int)
         y = np.where(dropout == 1, np.nan, y_full)

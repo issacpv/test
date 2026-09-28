@@ -21,8 +21,9 @@ MIMIC_VENT_ITEMS: dict[str, int] = {
 # Regex hints for HiRID's variable reference ("Variable Name" column) and eICU respiratoryCharting labels
 HIRID_HINTS: dict[str, str] = {
     "rr_set": r"respiratory rate.*set|set.*respiratory rate|RR\s*set",
-    "rr_total": r"respiratory rate.*(measured|total|patient)|^respiratory rate$",
-    "vt_obs": r"tidal volume.*(exp|measured|observed)|^tidal volume$",
+    "rr_total": r"respiratory rate.*(?:measured|total|patient)|^respiratory rate$",
+    "rr_monitor": r"respiratory rate.*(?:monitor|impedance|ECG)",
+    "vt_obs": r"tidal volume.*(?:exp|measured|observed)|^tidal volume$",
     "pip": r"peak.*pressure",
     "peep_set": r"PEEP",
     "minute_volume": r"minute volume",
@@ -31,12 +32,15 @@ HIRID_HINTS: dict[str, str] = {
 EICU_HINTS: dict[str, str] = {
     "rr_set": r"vent rate|set rate|RR.*set",
     "rr_total": r"total RR|RR \(patient\)|resp rate total",
-    "vt_obs": r"exhaled TV|tidal volume.*(observed|exhaled)",
+    "vt_obs": r"exhaled TV|tidal volume.*(?:observed|exhaled)",
     "pip": r"peak insp",
     "peep_set": r"PEEP",
     "minute_volume": r"minute volume|exhaled MV",
     "vent_mode": r"mode",
 }
+# Bedside-monitor (impedance) respiratory rate: MIMIC-IV chartevents 220210 'Respiratory Rate';
+# eICU vitalPeriodic.respiration; HiRID monitor RR (look up with HIRID_HINTS['rr_monitor']).
+MIMIC_MONITOR_RR_ITEM = 220210
 
 
 def mimic_vent_sql(root: str, items: dict[str, int] = MIMIC_VENT_ITEMS) -> str:
