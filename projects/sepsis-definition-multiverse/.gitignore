@@ -1,0 +1,43 @@
+# data and outputs are never committed (PhysioNet credentialed data must never enter git)
+data/*
+!data/README.md
+outputs/
+results/
+*.csv
+*.csv.gz
+*.parquet
+*.feather
+*.duckdb
+*.db
+*.pkl
+*.pickle
+*.npz
+*.npy
+*.h5
+*.hdf5
+*.nii.gz
+*.edf
+*.nwb
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+build/
+dist/
+
+# env / secrets
+.env
+.envrc
+*.secret
+.netrc
+.venv/
+venv/
+
+# editors
+.vscode/
+.idea/
+*.swp

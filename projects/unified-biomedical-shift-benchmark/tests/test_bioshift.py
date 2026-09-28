@@ -140,10 +140,15 @@ def test_decomposition_negative_and_label_shift_controls():
     Xt, yt = make(3000)  # same distribution -> all components ~ 0
     dec = decompose_gap(ys, clf.predict_proba(Xs)[:, 1], Xs, yt, clf.predict_proba(Xt)[:, 1], Xt)
     assert abs(dec["total_gap"]) < 0.03 and abs(dec["covariate"]) < 0.03 and abs(dec["label"]) < 0.03
-    # pure label shift (intercept change) -> label ratio estimate moves in the right direction
-    Xt2, yt2 = make(3000, prior_shift=2.0)
+    # pure label shift: resample the target by class (P(X|Y) fixed, prior 0.5 -> 0.75)
+    Xp, yp = make(20000)
+    pos, neg = np.flatnonzero(yp == 1), np.flatnonzero(yp == 0)
+    idx = np.r_[rng.choice(pos, 2250, replace=False), rng.choice(neg, 750, replace=False)]
+    Xt2, yt2 = Xp[idx], yp[idx]
     dec2 = decompose_gap(ys, clf.predict_proba(Xs)[:, 1], Xs, yt2, clf.predict_proba(Xt2)[:, 1], Xt2)
-    assert dec2["label_ratio_pos"] > 1.2
+    true_ratio = 0.75 / ys.mean()
+    assert abs(dec2["label_ratio_pos"] - true_ratio) < 0.25  # BBSE recovers q(y)/p(y)
+    assert abs(dec2["total_gap"]) < 0.03  # AUROC is invariant to class prior
     assert set(dec2) >= {"covariate", "label", "concept", "covariate_orderA", "label_orderB"}
 
 

@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-GLP1_NAME_RE = re.compile(r"(semaglutide|tirzepatide|liraglutide|dulaglutide|exenatide|lixisenatide|albiglutide|ozempic|wegovy|rybelsus|mounjaro|zepbound|victoza|saxenda|trulicity|byetta|bydureon|adlyxin)", re.I)
+GLP1_NAME_RE = re.compile(r"(?:semaglutide|tirzepatide|liraglutide|dulaglutide|exenatide|lixisenatide|albiglutide|ozempic|wegovy|rybelsus|mounjaro|zepbound|victoza|saxenda|trulicity|byetta|bydureon|adlyxin)", re.I)
 
 
 def poisson_rate(count: float, exposure: float, per: float = 10_000.0) -> Dict[str, float]:
