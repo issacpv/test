@@ -91,10 +91,21 @@ def test_noise_injection_estimation_and_fairness_simulation():
     probs = np.clip(0.15 + 0.7 * y + 0.1 * rng.standard_normal(n), 0.01, 0.99)
     est = noise_simulation.estimate_noise_rates(probs, y_noisy, g)
     assert est["by_group"]["B"][1, 0] > est["by_group"]["A"][1, 0]      # P(noisy=0 | true=1) larger in B
-    sim = noise_simulation.simulate_fairness_gap(4000, {"A": 0.3, "B": 0.3}, fnr, {"A": 0.0, "B": 0.0},
-                                                 classifier_auc=0.9, n_rep=30, rng=rng)
-    assert sim["gap_noisy_labels"] > sim["gap_true_labels"] + 0.05
-    assert sim["auc_noisy"] < sim["auc_true"]
+    # mechanism 1: class-conditional FN noise alone leaves the FNR among noisy positives unchanged ...
+    sim0 = noise_simulation.simulate_fairness_gap(4000, {"A": 0.3, "B": 0.3}, fnr, {"A": 0.0, "B": 0.0},
+                                                  classifier_auc=0.9, n_rep=20, severity_dependence=0.0, rng=rng)
+    assert abs(sim0["gap_noisy_labels"] - sim0["gap_true_labels"]) < 0.04
+    # ... but severity-dependent non-mention shifts the severity mix of noisy positives and creates a gap
+    sim1 = noise_simulation.simulate_fairness_gap(4000, {"A": 0.3, "B": 0.3}, fnr, {"A": 0.0, "B": 0.0},
+                                                  classifier_auc=0.9, n_rep=20, severity_dependence=3.0, rng=rng)
+    assert sim1["gap_noisy_labels"] > sim1["gap_true_labels"] + 0.04
+    assert sim1["fnr_noisy_by_group"]["B"] < sim1["fnr_noisy_by_group"]["A"]   # under-reported group looks *better*
+    assert sim1["auc_noisy"] < sim1["auc_true"]
+    # mechanism 2: training on differentially noisy labels produces a real FNR gap against expert labels
+    tr = noise_simulation.simulate_training_under_noise(6000, 4000, 0.3, fnr, {"A": 0.0, "B": 0.0},
+                                                        n_rep=5, rng=rng)
+    assert tr["fnr_true_labels_by_group"]["B"] > tr["fnr_true_labels_by_group"]["A"] + 0.03
+    assert tr["gap_true_labels"] > 0.03
     tau = noise_simulation.rank_agreement({"m1": 0.9, "m2": 0.8, "m3": 0.7}, {"m1": 0.7, "m2": 0.8, "m3": 0.9})
     assert tau == pytest.approx(-1.0)
 

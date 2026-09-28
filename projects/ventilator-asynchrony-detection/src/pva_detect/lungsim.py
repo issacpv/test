@@ -38,7 +38,8 @@ class VentSettings:
     trigger_flow: float = 0.03   # L/s (~2 L/min)
     cycle_pct: float = 0.25      # PS expiratory trigger: cycle when flow < cycle_pct * peak
     max_ti: float = 3.0
-    lockout_s: float = 0.2       # trigger lockout after cycling
+    lockout_s: float = 0.2       # trigger lockout (minimum expiratory time) after cycling
+    bias_flow: float = 0.08      # L/s: the most a patient can draw from the circuit without a delivered breath
 
 
 @dataclass
@@ -95,9 +96,8 @@ def _pmus_value(t: float, starts: np.ndarray, eff: EffortModel) -> float:
         return 0.0
     d = dtau[active]
     rise = eff.pmus_amp * np.sin(np.pi * np.clip(d, 0, eff.ti_neural) / eff.ti_neural)
-    relax = np.where(d > eff.ti_neural, eff.pmus_amp * 0.0 + np.exp(-(d - eff.ti_neural) / eff.decay_s) * 0.0, 0.0)
-    val = np.where(d <= eff.ti_neural, rise, eff.pmus_amp * 0.05 * np.exp(-(d - eff.ti_neural) / eff.decay_s))
-    return float(val.sum() + relax.sum())
+    tail = eff.pmus_amp * 0.05 * np.exp(-(d - eff.ti_neural) / eff.decay_s)
+    return float(np.where(d <= eff.ti_neural, rise, tail).sum())
 
 
 def simulate(cfg: SimConfig) -> SimResult:
@@ -142,6 +142,7 @@ def simulate(cfg: SimConfig) -> SimResult:
         osc = cfg.cardiac_osc_lps * np.sin(2 * np.pi * cfg.heart_rate / 60 * t)
         if state == "EXP":
             Q = (P - V / lung.C) / lung.R + osc + cfg.flow_noise_lps * rng.normal()
+            Q = min(Q, vent.bias_flow)  # inspiratory demand during expiration is limited to the bias flow
             Paw = vent.peep
             trig_patient = (Q >= vent.trigger_flow) and (t - t_cycle >= vent.lockout_s)
             trig_time = (t - t_last_mand >= mand_period)
@@ -199,8 +200,9 @@ SCENARIOS: dict[str, SimConfig] = {
     "controlled": SimConfig(effort=EffortModel(mode="none")),
     "synchronous_assisted": SimConfig(vent=VentSettings(rr_set=12.0, ti=0.9),
                                       effort=EffortModel(rr_neural=14.0, pmus_amp=8.0, ti_neural=0.9)),
-    "ineffective_efforts": SimConfig(vent=VentSettings(rr_set=12.0, ti=1.0),
-                                     effort=EffortModel(rr_neural=28.0, pmus_amp=3.0, ti_neural=0.6)),
+    # obstructive lung (long time constant) + high neural rate + weak efforts: efforts early in expiration fail
+    "ineffective_efforts": SimConfig(lung=LungParams(R=20.0, C=0.06), vent=VentSettings(rr_set=12.0, ti=0.9, vt=0.5),
+                                     effort=EffortModel(rr_neural=30.0, pmus_amp=3.0, ti_neural=0.6)),
     "double_triggering": SimConfig(vent=VentSettings(rr_set=12.0, ti=0.6, vt=0.4),
                                    effort=EffortModel(rr_neural=14.0, pmus_amp=12.0, ti_neural=1.4)),
     "reverse_triggering": SimConfig(vent=VentSettings(rr_set=15.0, ti=1.0),

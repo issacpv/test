@@ -16,12 +16,13 @@ import pandas as pd
 from scipy.signal import find_peaks
 
 
-def segment_breaths(flow: np.ndarray, fs: float, insp_threshold: float = 0.05, min_ti_s: float = 0.15,
+def segment_breaths(flow: np.ndarray, fs: float, insp_threshold: float = 0.15, min_ti_s: float = 0.15,
                     min_te_s: float = 0.1) -> pd.DataFrame:
     """Delivered breaths from the flow signal: ``start_idx, insp_end_idx, end_idx``.
 
-    Inspiration = flow above ``insp_threshold`` (L/s) for at least ``min_ti_s``; it ends when flow
-    drops below the threshold. A breath ends at the next inspiration start.
+    Inspiration = flow above ``insp_threshold`` (L/s; default 9 L/min, above any bias/demand flow a
+    patient can draw without a delivered breath) for at least ``min_ti_s``; it ends when flow drops
+    below the threshold. A breath ends at the next inspiration start.
     """
     above = np.asarray(flow) > insp_threshold
     edges = np.diff(above.astype(int), prepend=0, append=0)

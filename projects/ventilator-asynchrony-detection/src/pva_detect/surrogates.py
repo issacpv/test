@@ -19,16 +19,23 @@ from scipy.stats import spearmanr
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import roc_auc_score
 
-SURROGATE_FEATURES = ("rr_measured", "rr_excess", "cv_vt", "cv_pip", "cv_rr", "mv_inconsistency", "pip_range")
+SURROGATE_FEATURES = ("rr_measured", "rr_excess", "rr_monitor_excess", "cv_vt", "cv_pip", "cv_rr",
+                      "mv_inconsistency", "pip_range")
 
 
 def bin_breaths(features: pd.DataFrame, labels: pd.Series | None, ie_times_s: np.ndarray, bin_s: float = 120.0,
-                rr_set: float | None = None, duration_s: float | None = None) -> pd.DataFrame:
+                rr_set: float | None = None, duration_s: float | None = None, p_ie_on_monitor: float = 0.8) -> pd.DataFrame:
     """Per-bin charted-style summaries plus the true asynchrony index.
 
     ``features`` from ``breaths.breath_features``; ``labels`` (per breath) with values such as
     'double_trigger'; ``ie_times_s`` times of ineffective efforts. Bins with no breaths are kept
     with NaN summaries so exposure time is preserved.
+
+    ``rr_monitor`` emulates the bedside monitor's impedance respiratory rate, which counts chest-wall
+    movements: every delivered breath plus a fraction ``p_ie_on_monitor`` of ineffective efforts
+    (an explicit modelling assumption to be calibrated on real monitor/ventilator pairs). The
+    ventilator's own rate counts delivered breaths only, so ``rr_monitor - rr_measured`` is the
+    charted footprint of ineffective effort.
     """
     duration_s = duration_s or float(features["t_start"].max() + 5)
     n_bins = int(np.ceil(duration_s / bin_s))
@@ -44,7 +51,8 @@ def bin_breaths(features: pd.DataFrame, labels: pd.Series | None, ie_times_s: np
         n_async = int(async_lab[m].sum())
         row = {"bin": k, "t_center": (k + 0.5) * bin_s, "n_breaths": n_b, "n_ie": n_ie, "n_async_breaths": n_async,
                "ai_true": 100.0 * (n_ie + n_async) / (n_b + n_ie) if (n_b + n_ie) else np.nan,
-               "rr_measured": 60.0 * n_b / bin_s, "rr_set": rr_set}
+               "rr_measured": 60.0 * n_b / bin_s, "rr_set": rr_set,
+               "rr_monitor": 60.0 * (n_b + p_ie_on_monitor * n_ie) / bin_s}
         for col in ("vt_insp", "pip", "rr_inst"):
             row[f"mean_{col}"] = float(f[col].mean()) if n_b else np.nan
             row[f"cv_{col}"] = float(f[col].std(ddof=0) / f[col].mean()) if n_b > 1 and f[col].mean() else np.nan

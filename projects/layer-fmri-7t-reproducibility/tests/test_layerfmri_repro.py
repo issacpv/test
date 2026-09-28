@@ -15,8 +15,9 @@ def test_equidistant_and_equivolume_on_annulus_phantom():
     err_v = np.abs(eqv[gm] - ph["equivol_true"][gm])
     assert np.nanmax(err_d) < 0.08 and np.nanmean(err_d) < 0.04
     assert np.nanmax(err_v) < 0.08 and np.nanmean(err_v) < 0.04
-    # on a gyral crown equivolume layers are shifted toward WM relative to equidistant
-    assert np.nanmean(eqv[gm] - eqd[gm]) > 0.02
+    # gyral crown: alpha = beta * (r + r_wm) / (r_pial + r_wm) <= beta, i.e. equivolume depth values are
+    # smaller and the bin boundaries move toward the pial surface (deep layers get thicker)
+    assert np.nanmean(eqv[gm] - eqd[gm]) < -0.02
     bins_eqv = layering.assign_bins(eqv, 6)
     bins_eqd = layering.assign_bins(eqd, 6)
     fr_v = layering.bin_volume_fractions(bins_eqv, 6)
@@ -26,7 +27,9 @@ def test_equidistant_and_equivolume_on_annulus_phantom():
     flat = layering.equivolume_depth(np.array([1.0]), np.array([3.0]), np.array([0.0]))
     assert flat[0] == pytest.approx(0.25)
     sulc = layering.equivolume_depth(np.array([1.0]), np.array([3.0]), np.array([-1 / 30.0]))
-    assert sulc[0] < 0.25                                # sulcus: equivolume depth shifts toward the pial side
+    assert sulc[0] > 0.25                                # sulcal fundus: the inequality reverses (alpha >= beta)
+    gyr = layering.equivolume_depth(np.array([1.0]), np.array([3.0]), np.array([1 / 30.0]))
+    assert gyr[0] < 0.25
 
 
 def test_profile_extraction_and_shape_features():

@@ -87,7 +87,8 @@ def test_meta_regression_recovers_method_effects():
     # reference level is alphabetical: em; golgi and fluorescence are relative to em
     assert coef["method_golgi"] == pytest.approx(-0.8, abs=0.2)
     assert coef["method_fluorescence"] == pytest.approx(-0.3, abs=0.2)
-    assert coef["species_human"] > 0.1
+    # species reference level is 'human' (alphabetical); mouse and rat sit ~0.25 log units lower
+    assert coef["species_mouse"] < -0.1 and coef["species_rat"] < -0.1
     assert res["p"]["method_golgi"] < 0.001
     assert 0 <= res["I2"] <= 1
     assert res["R2_between"] > 0.3

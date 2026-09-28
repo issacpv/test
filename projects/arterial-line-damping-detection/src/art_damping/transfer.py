@@ -67,9 +67,27 @@ class SyntheticABP:
     fs: float
 
 
+def ejection_profile(t_ej: float, fs: float, t_peak_frac: float = 0.25, backflow_frac: float = 0.06) -> np.ndarray:
+    """Unit-area aortic flow pulse: fast skewed rise (gamma-like) to a peak at ``t_peak_frac * t_ej`` followed
+    by a decay, then a short negative lobe (valve-closure backflow) that produces the dicrotic notch.
+
+    A fast upstroke is essential: it is the high-frequency content of the pulse that a resonant
+    (under-damped) catheter system amplifies.
+    """
+    n = max(4, int(round(t_ej * fs)))
+    tau = np.arange(n) / n
+    tp = t_peak_frac
+    k = 2.0
+    pos = (tau / tp) ** k * np.exp(k * (1 - tau / tp))
+    n_back = max(2, int(round(0.08 * n)))
+    back = -backflow_frac * np.sin(np.pi * np.arange(n_back) / n_back)
+    prof = np.r_[pos, back]
+    return prof / (prof[prof > 0].sum() / fs)  # positive lobe integrates to 1 mL per mL of SV
+
+
 def synthetic_true_abp(fs: float = 125.0, n_beats: int = 40, hr: float = 75.0, sv_ml: float = 70.0,
                        R: float = 1.0, C: float = 1.5, noise_mmhg: float = 0.3, seed: int = 0) -> SyntheticABP:
-    """Intra-arterial ('true') pressure from a two-element Windkessel with half-sine ejection."""
+    """Intra-arterial ('true') pressure from a two-element Windkessel driven by ``ejection_profile``."""
     rng = np.random.default_rng(seed)
     dt = 1.0 / fs
     rr = 60.0 / hr
@@ -78,11 +96,12 @@ def synthetic_true_abp(fs: float = 125.0, n_beats: int = 40, hr: float = 75.0, s
     n = int(np.ceil((onset_times[-1] + rr + 0.5) * fs))
     t = np.arange(n) / fs
     q = np.zeros(n)
+    prof = ejection_profile(t_ej, fs)
     for t0 in onset_times:
         sv = sv_ml * (1 + 0.05 * rng.normal())
-        i0, i1 = int(round(t0 * fs)), min(n, int(round((t0 + t_ej) * fs)))
-        tau = (np.arange(i0, i1) / fs - t0) / t_ej
-        q[i0:i1] = (np.pi * sv / (2 * t_ej)) * np.sin(np.pi * tau)
+        i0 = int(round(t0 * fs))
+        i1 = min(n, i0 + prof.size)
+        q[i0:i1] += sv * prof[: i1 - i0]
     p = np.empty(n)
     p[0] = 80.0
     for i in range(1, n):

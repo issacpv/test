@@ -41,14 +41,18 @@ class ThresholdBaseline:
 
     @staticmethod
     def _otsu(x: np.ndarray, bins: int = 256) -> float:
+        """Otsu threshold: maximize between-class variance w0·w1·(m0 − m1)² over histogram bins."""
         hist, edges = np.histogram(x, bins=bins)
+        hist = hist.astype(float)
         centers = (edges[:-1] + edges[1:]) / 2
         w0 = np.cumsum(hist)
         w1 = hist.sum() - w0
-        m0 = np.cumsum(hist * centers) / np.maximum(w0, 1)
-        m1 = (np.cumsum((hist * centers)[::-1])[::-1] / np.maximum(w1, 1))
-        between = w0[:-1] * w1[:-1] * (m0[:-1] - m1[1:]) ** 2
-        return float(centers[np.argmax(between)])
+        s0 = np.cumsum(hist * centers)
+        m0 = s0 / np.maximum(w0, 1e-12)
+        m1 = (s0[-1] - s0) / np.maximum(w1, 1e-12)
+        between = w0 * w1 * (m0 - m1) ** 2
+        between[w1 <= 0] = -1
+        return float(edges[np.argmax(between) + 1])
 
     def segment(self, img: np.ndarray, spacing=(1.0, 1.0, 1.0)) -> np.ndarray:
         x = ndimage.gaussian_filter(np.asarray(img, np.float32), self.smooth_sigma)
@@ -62,7 +66,9 @@ class ThresholdBaseline:
         out = fg.astype(np.int16)
         vals = x[fg]
         if vals.size > 10:
-            z = (x - np.median(vals)) / (1.4826 * np.median(np.abs(vals - np.median(vals))) + 1e-6)
+            med = np.median(vals)
+            scale = max(1.4826 * np.median(np.abs(vals - med)), 0.05 * abs(med), 1e-6)  # floor: MAD collapses on clean images
+            z = (x - med) / scale
             lesion = fg & (z > self.lesion_z)
             lesion = ndimage.binary_opening(lesion, iterations=1)
             out[lesion] = 2

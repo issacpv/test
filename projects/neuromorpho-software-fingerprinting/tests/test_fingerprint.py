@@ -52,7 +52,9 @@ def test_resampling_removes_sampling_signature():
     b = resample_swc(make_tree(AUTO, seed=3), spacing=1.0, precision=2, drop_radius=True)
     fa, fb = sampling_fingerprint(a), sampling_fingerprint(b)
     assert abs(fa["spacing_q50"] - fb["spacing_q50"]) < 0.3
-    assert fa["radius_unique_fraction"] == fb["radius_unique_fraction"]
+    # radii dropped -> a single radius value in both trees (unique fraction ~ 1 / n_nodes)
+    assert fa["radius_unique_fraction"] < 0.01 and fb["radius_unique_fraction"] < 0.01
+    assert abs(fa["spacing_grid_fraction"] - fb["spacing_grid_fraction"]) < 0.2
     assert morphometrics(a)["n_bifurcations"] == morphometrics(make_tree(MANUAL, seed=3))["n_bifurcations"]
 
 
