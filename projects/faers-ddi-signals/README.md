@@ -106,3 +106,38 @@ Sex is the obvious missing stratifier. Women file more reports and experience mo
 ## Related projects in this repository
 
 `faers-reporting-bias` (reporter-type and stimulated-reporting adjustment), `faers-signal-ehr-validation` (EHR validation of signals), `unlabeled-adverse-event-mining` (label expectedness). This project is self-contained and does not import from them.
+
+## Quick start (starter code)
+
+```bash
+cd projects/faers-ddi-signals
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample        # ~30 requests, data/raw/*.jsonl
+PYTHONPATH=src python -m pytest -q tests        # synthetic-data tests
+```
+
+```python
+from faers_ddi import read_jsonl, index_reports, candidate_pairs, pair_event_table, screen, sex_stratified_tables, sex_specific_interaction
+reports = read_jsonl("data/raw/pair_clarithromycin_simvastatin.jsonl") + read_jsonl("data/raw/drug_simvastatin.jsonl")
+tab = pair_event_table(reports, [("CLARITHROMYCIN", "SIMVASTATIN")], min_n111=3)
+res = screen(tab, omega_model="independence")          # omega, omega025, ior, reri, q_ior
+st = sex_stratified_tables(reports, [("CLARITHROMYCIN", "SIMVASTATIN")], min_n111=3)
+```
+
+Module map: `openfda.py` (client, `flatten_record` with per-role drug lists), `ddi_tables.py` (n_ijk cells, pair enumeration, sex strata), `ddi_stats.py` (Omega with four no-interaction models, IOR, RERI, three-way sex interaction, empirical-Bayes hierarchical shrinkage, BH, `screen`), `reference_sets.py` (curated/mechanism/reporter-flagged sets, AUROC/AP evaluation).
+
+## Key variables and cohort definitions
+
+| Variable | Definition | Source field(s) |
+|---|---|---|
+| Report | one FAERS case (latest version per `CASEID`; openFDA `safetyreportid` otherwise) | `safetyreportid`, ASCII `CASEID`/`CASEVERSION` |
+| Drug A / B present | harmonised generic name listed in any role (primary); suspect-only (sensitivity) | `patient.drug.openfda.generic_name`, `medicinalproduct`, `drugcharacterization` |
+| Interacting flag | reporter coded the drug as interacting (partial positive label) | `drugcharacterization = 3` / ASCII `ROLE_COD = I` |
+| Event | MedDRA PT (primary) or HLT class for QT, bleeding, serotonin syndrome, myopathy | `patient.reaction.reactionmeddrapt` |
+| Sex stratum | female / male; unknown excluded from stratified analyses | `patient.patientsex` (2 / 1) |
+| Age band | < 18, 18–64, ≥ 65 (unit-converted) | `patientonsetage`, `patientonsetageunit` |
+| Reporter type | physician / pharmacist / other HCP / lawyer / consumer | `primarysource.qualification` |
+| Window | receipt date 2015-01-01 to 2026-06-30 | `receivedate` |
+| Mechanism group | CYP3A4-inh × substrate, CYP2D6, P-gp, QT+QT, serotonergic, anticoagulant+antiplatelet, none | FDA DDI tables, CredibleMeds, ONC list |
+| n111 minimum | 3 reports on A+B+E (pooled); 3 in each sex for the sex screen | — |

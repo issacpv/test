@@ -93,4 +93,6 @@ def test_combat_removes_batch_and_preserves_biology():
     assert kb_before > 0.8 and kb_after < 0.3
     assert abs(Xa[batch == "A"].mean() - Xa[batch == "B"].mean()) < 0.2
     pres = effect_size_preservation(X, Xa, bio)
-    assert pres.loc[0, "d_after"] > 0.5 and pres.loc[0, "abs_change"] < 0.4
+    # d = mean(bio==0) - mean(bio==1) is negative by construction; its magnitude must survive harmonisation
+    assert abs(pres.loc[0, "d_after"]) > 0.5 and pres.loc[0, "abs_change"] < 0.4
+    assert np.sign(pres.loc[0, "d_after"]) == np.sign(pres.loc[0, "d_before"])

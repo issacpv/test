@@ -1,0 +1,60 @@
+# data and outputs are never committed (PhysioNet credentialed data must never leave approved storage)
+data/*
+!data/README.md
+outputs/
+work/
+*.log
+
+# images / notes / large binaries
+*.dcm
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+*.nii
+*.nii.gz
+*.edf
+*.nwb
+*.zip
+*.tar
+*.tar.gz
+*.gz
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.pt
+*.pth
+*.safetensors
+
+# tabular downloads / report dumps
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+*.jsonl
+*.txt
+!requirements.txt
+!tests/**/*.csv
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+
+# environments / secrets
+.env
+.venv/
+venv/
+*.netrc
+.physionet_credentials
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store

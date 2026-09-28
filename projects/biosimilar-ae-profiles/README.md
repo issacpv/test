@@ -106,3 +106,40 @@ Switching studies (Cohen et al., 2018, *Drugs*; Barbier et al., 2020, *Clin Phar
 ## Related projects in this repository
 
 `faers-reporting-bias` (reporter-type and stimulated-reporting adjustment), `unlabeled-adverse-event-mining` (label-expectedness mining), `faers-signal-ehr-validation`. This project is self-contained.
+
+## Quick start (starter code)
+
+```bash
+cd projects/biosimilar-ae-profiles
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample --families ADALIMUMAB INFLIXIMAB PEGFILGRASTIM
+PYTHONPATH=src python -m pytest -q tests
+```
+
+```python
+from biosim_ae import read_jsonl, calendar_window, comparator_ror, profile_distance_test, panel_comparison, attributability_summary
+bio = read_jsonl("data/raw/reports_adalimumab_hyrimoz.jsonl")
+orig = read_jsonl("data/raw/reports_adalimumab_humira.jsonl")
+bio24, orig24 = calendar_window(bio, "2023-07", 24), calendar_window(orig, "2023-07", 24)
+dist = profile_distance_test(bio24, orig24, n_perm=1000)         # JS divergence + permutation p
+pts = comparator_ror(bio24, orig24, min_a=3)                      # per-PT ROR vs originator, BH q
+panels = panel_comparison(bio24, orig24)                           # effectiveness / injection-site / device / ...
+```
+
+Module map: `openfda.py` (client), `products.py` (catalogue of 15 families, attribution hierarchy, attributability summary, launch dates), `profiles.py` (comparator ROR, JS test, launch curves, Weber descriptors, PT panels, MH ROR), `labels.py` (SPL retrieval, PT-in-label matching, label similarity).
+
+## Key variables and cohort definitions
+
+| Variable | Definition | Source field(s) |
+|---|---|---|
+| Family | reference biologic INN (adalimumab, infliximab, rituximab, ...) | catalogue in `products.FAMILIES` |
+| Product attribution | biosimilar brand > suffixed INN > originator brand > INN-only | `openfda.brand_name`, `generic_name`, `substance_name`, `medicinalproduct` |
+| Attributable | report where every family mention resolves to one product (originator or biosimilar) | derived |
+| Launch window | first 24 months from US launch month (calendar); months-since-launch 0–23 (sibling) | `receivedate`, catalogue `us_launch` |
+| Comparator | originator reports received in the same calendar months | derived |
+| Reporter type / source | physician, pharmacist, other HCP, lawyer, consumer; spontaneous vs study vs other | `primarysource.qualification`, `reporttype`, ASCII `RPSR_COD` |
+| Serious / death | FAERS seriousness flags | `serious`, `seriousnessdeath` |
+| PT panels | effectiveness, injection-site, device, hypersensitivity, substitution (see `profiles.PANELS`) | `patient.reaction.reactionmeddrapt` |
+| Labelled PT | PT or synonym found in the brand's boxed warning / W&P / adverse reactions text | `drug/label` sections |
+| Minimum per product-window | 200 reports for inferential comparisons | — |

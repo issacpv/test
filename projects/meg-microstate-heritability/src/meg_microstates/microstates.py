@@ -7,7 +7,7 @@ microstate practice ignores polarity; MEG studies differ).
 """
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -27,13 +27,14 @@ def gfp_peaks(g: np.ndarray, min_distance: int = 1) -> np.ndarray:
     cand = np.flatnonzero((g[1:-1] > g[:-2]) & (g[1:-1] >= g[2:])) + 1
     if min_distance <= 1 or len(cand) == 0:
         return cand
-    keep = [cand[0]]
-    for c in cand[1:]:
-        if c - keep[-1] >= min_distance:
-            keep.append(c)
-        elif g[c] > g[keep[-1]]:
-            keep[-1] = c
-    return np.asarray(keep, dtype=int)
+    # height-priority selection (as scipy.signal.find_peaks does for ``distance``): accept the
+    # highest peaks first and drop any later candidate closer than ``min_distance`` to an accepted one
+    order = cand[np.argsort(-g[cand], kind="stable")]
+    keep: List[int] = []
+    for c in order:
+        if all(abs(c - k) >= min_distance for k in keep):
+            keep.append(int(c))
+    return np.asarray(sorted(keep), dtype=int)
 
 
 # --------------------------------------------------------------------------- clustering

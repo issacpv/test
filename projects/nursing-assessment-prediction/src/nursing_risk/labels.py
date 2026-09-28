@@ -18,8 +18,9 @@ def icd_pi_stage(code: str, version: int) -> int | None:
     """
     c = str(code).replace(".", "").upper()
     if int(version) == 10 and c.startswith("L89"):
-        if len(c) >= 5 and c[4].isdigit():
-            d = int(c[4])
+        # L89 + 2-digit site + stage digit, e.g. L89153 = sacral region, stage 3
+        if len(c) >= 6 and c[5].isdigit():
+            d = int(c[5])
             return d if 1 <= d <= 4 else 0
         return 0
     if int(version) == 9 and c.startswith("707"):

@@ -93,14 +93,15 @@ def test_additive_interaction_and_hazard():
     assert ai["RERI"] == pytest.approx(4.8 - 2.0 - 1.5 + 1)
     assert 0 < ai["AP"] < 1 and ai["S"] > 1
     df = simulate_wmh_cohort(n_subjects=600, h_aw=1.0, seed=3)
-    pp = person_period(df)
+    pp = person_period(df, max_period=5)
     assert pp["y"].sum() == df.groupby("subject")["event"].first().sum()
+    assert pp["period_cat"].max() <= 5
     res = discrete_time_hazard(pp, "amyloid_pos * wmh_bin + age")
     b_a, b_w, b_aw = res.params["amyloid_pos"], res.params["wmh_bin"], res.params["amyloid_pos:wmh_bin"]
     assert b_a > 0 and additive_interaction(b_a, b_w, b_aw)["RERI"] > 0
 
     def fit_fn(d):
-        r = discrete_time_hazard(person_period(d), "amyloid_pos * wmh_bin")
+        r = discrete_time_hazard(person_period(d, max_period=5), "amyloid_pos * wmh_bin")
         return r.params["amyloid_pos"], r.params["wmh_bin"], r.params["amyloid_pos:wmh_bin"]
 
     boot = bootstrap_additive_interaction(df, fit_fn, n_boot=8, seed=0)

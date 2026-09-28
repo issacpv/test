@@ -99,6 +99,40 @@ Follow-ups: add tau PET (AV1451 subset in OASIS-3) for a three-pathology model; 
 - [ ] ADNI replication with UC Davis WMH tables; pooled additive-interaction estimate.
 - [ ] Share the WMH table (per OASIS terms), release code; write-up.
 
+## Cohort definitions and key variables
+
+| Cohort | Definition | Used for |
+|---|---|---|
+| OASIS-3 longitudinal | ≥ 2 FLAIR sessions ≥ 1 y apart, amyloid PET within ±365 d of at least one session, CDR within ±180 d of each session | RQ1, RQ3, RQ4, RQ6 |
+| OASIS-3 progression | CDR = 0 at first FLAIR, ≥ 1 later CDR assessment | RQ2 (person-period hazard), RQ5 |
+| OASIS-3 era strata | sessions on 1.5T (Vision/Sonata) vs 3T (Trio/mMR/later) | RQ6 |
+| ADNI replication | ADNI-2/3 participants with UC Davis WMH volume, Centiloid within ±365 d and CDR-SB follow-up | RQ6 |
+| WMH challenge | 60 cases with manual masks | segmenter calibration |
+
+Session-level variables: `subject`, `day`, `time` (years from first FLAIR), `age`, `scanner`, `era_3T`, `wmh_ml`, `wmh_log`, `wmh_pct_icv`, `periventricular_ml`, `deep_ml`, `posterior_fraction`, per-tool volumes (`wmh_ml_lst`, `wmh_ml_bianca`, `wmh_ml_samseg`, `wmh_ml_dl`), `centiloid_pet`, `tracer_pet`, `gap_days_pet`, `amyloid_pos`; clinical `cdr_clin`, `sumbox_clin`, `mmse_clin`, psychometric composite (z-scored logical memory delayed, digit symbol, animal fluency, Trails B); subject-level `sex`, `education`, `apoe4`, `event`, `event_time`.
+
+## Starter code map
+
+| Module / function | What it does |
+|---|---|
+| `wmh_amyloid.cohort.parse_oasis_id`, `amyloid_positive` | OASIS-3 IDs; Centiloid thresholds per tracer |
+| `cohort.match_nearest`, `build_longitudinal_table`, `progression_events` | nearest-PET / nearest-clinical matching with windows, baseline-PET carry-forward, time-to-event table |
+| `wmh_amyloid.wmh_features.periventricular_deep_split`, `lobar_volumes`, `wmh_volume_ml`, `normalize_wmh` | regional WMH features from masks |
+| `wmh_features.dice`, `volume_agreement` | segmentation-tool agreement (Dice, ICC(2,1), Bland-Altman) |
+| `wmh_amyloid.models.fit_interaction_mixed_model` | `cognition ~ time * amyloid * WMH(t)` with random intercept/slope; interaction table |
+| `models.person_period`, `discrete_time_hazard` | time-varying discrete-time hazard for CDR progression |
+| `models.additive_interaction`, `bootstrap_additive_interaction` | RERI, AP, synergy index with subject-bootstrap CIs |
+| `wmh_amyloid.simulate.simulate_wmh_cohort` | cohort with known slope interaction and hazard interaction |
+| `tests/test_wmh_amyloid.py` | ID/status parsing, matching, mask features, recovery of a known three-way interaction and of RERI > 0 |
+
+Quick start:
+
+```
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests
+PYTHONPATH=src python -c "from wmh_amyloid import *; df=simulate_wmh_cohort(); r,t=fit_interaction_mixed_model(df,'cognition',covariates=('age','sex')); print(t)"
+```
+
 ## Ethics / data-use notes
 
 - OASIS-3/4 and ADNI DUAs: no redistribution of raw data, no re-identification; the derived WMH table can only be shared through channels the OASIS team approves; ADNI manuscripts pass the ADNI publications committee.

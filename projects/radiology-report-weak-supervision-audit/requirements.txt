@@ -1,0 +1,17 @@
+# Core (used by src/cxr_label_audit and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # PhysioNet HTTP downloads with basic auth (scripts/download_data.py)
+
+# Production labelers / models (optional; run locally only)
+# chexpert-labeler        # https://github.com/stanfordmlgroup/chexpert-labeler (NegBio-based)
+# negbio>=1.0
+# torch>=2.2 ; transformers>=4.40     # CheXbert inference
+# torchxrayvision>=1.2   # public CXR models for benchmark re-ranking
+# vllm / ollama          # local LLM labeler backend (loopback only; see cxr_label_audit.local_llm_labeler)

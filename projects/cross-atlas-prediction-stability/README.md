@@ -94,6 +94,43 @@ Follow-ups: extend to structural connectomes (parcellation drives tractography e
 - [ ] RQ6: AOMIC replication; CoRR reliability arm; individualised parcellation arm.
 - [ ] Release ARI tables, consensus maps and code; write-up.
 
+## Atlas set, phenotypes and key variables
+
+| Atlas (family) | Resolutions | Space | Access |
+|---|---|---|---|
+| Schaefer 2018 (functional gradient) | 100, 200, 400, 600, 800, 1000 (7/17 networks) | fsLR + MNI | open (nilearn / CBIG) |
+| Glasser MMP1.0 (multimodal) | 360 | fsLR | free registration (BALSA) |
+| Gordon 2016 (boundary mapping) | 333 | fsLR + MNI | open / BALSA |
+| Brainnetome (connectivity-based) | 246 | MNI + fsLR | free registration |
+| AAL, Harvard-Oxford (anatomical) | 116 / 96 | MNI | open (nilearn) |
+| Craddock 2012 (clustering) | 100-950 | MNI | open (nilearn) |
+| DiFuMo (soft dictionary) | 64-1024 | MNI | open (nilearn) |
+| Individualised MS-HBM parcels (HCP only) | 400 | fsLR | derived |
+
+Phenotypes (pre-specified): HCP `Age_in_Yrs` (restricted), `Gender`, `CogFluidComp_Unadj`, `CogCrystalComp_Unadj`, `CogTotalComp_Unadj`, `ProcSpeed_Unadj`, NEO-FFI `NEOFAC_N/E/O/A/C`; AOMIC `age`, `sex`, `IQ` (Raven / IST), `education_level`, NEO-FFI. Subject-level variables: `subject`, `family_id` (HCP) / `site`, mean FD per run (QC covariate), `fc_<atlas>` edge vectors per atlas, out-of-fold `yhat_<atlas>`, per-fold Haufe patterns, Yeo-7 network assignment per node.
+
+## Starter code map
+
+| Module / function | What it does |
+|---|---|
+| `atlas_stability.parcellate.parcellate_timeseries`, `fisher_z_fc`, `vectorize_upper` | array-level parcellation and FC features |
+| `parcellate.node_to_space`, `edge_weights_to_node_strength`, `majority_network_assignment`, `aggregate_nodes_to_networks` | projection of findings to the common vertex space and to networks |
+| `parcellate.random_contiguous_parcellation` | random atlases for nulls and simulations |
+| `atlas_stability.predict.ridge_cv_predict`, `cpm_cv_predict`, `prediction_accuracy`, `haufe_pattern` | grouped nested CV with out-of-fold predictions and per-fold patterns |
+| `atlas_stability.robustness.accuracy_dispersion`, `prediction_concordance`, `finding_concordance` | the three ARI components (finding concordance with a parcel-permutation null) |
+| `robustness.atlas_robustness_index`, `posthoc_selection_inflation` | ARI and best-of vs nested vs ensemble accuracy |
+| `atlas_stability.simulate.simulate_vertex_dataset` | vertex series with a ground-truth parcellation and phenotype-coupled edge |
+| `tests/test_atlas_stability.py` | parcellation/projection arithmetic, true atlas beats a mismatched atlas, ARI in [0, 1], selection inflation > 0 under the null |
+
+Quick start:
+
+```
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests
+python scripts/download_data.py atlases --out data/atlases        # nilearn fetchers
+python scripts/download_data.py aomic --dataset ds002785 --sample 5   # open OpenNeuro derivatives
+```
+
 ## Ethics / data-use notes
 
 - HCP open-access terms; restricted data (family IDs) never redistributed; AOMIC is CC0 but participants must not be re-identified; CoRR/NKI per INDI terms.

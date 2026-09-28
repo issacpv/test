@@ -105,3 +105,41 @@ Semaglutide (Ozempic 2017, Rybelsus 2019, Wegovy 2021) and tirzepatide (Mounjaro
 ## Related projects in this repository
 
 `faers-reporting-bias` (reporter-type and stimulated-reporting adjustment; sex-stratified ROR utilities), `unlabeled-adverse-event-mining` (label expectedness), `faers-ddi-signals` (interaction terms), `faers-signal-ehr-validation`. This project is self-contained.
+
+## Quick start (starter code)
+
+```bash
+cd projects/glp1-sex-stratified-pv
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample --per-query 400
+PYTHONPATH=src python -m pytest -q tests
+```
+
+```python
+from glp1_sexpv import read_jsonl, sex_difference_atlas, aggregate_counts, adjusted_sex_interaction, excess_female_reporting
+exposed = read_jsonl("data/raw/reports_semaglutide.jsonl")
+background = read_jsonl("data/raw/reports_cmp_sglt2.jsonl")     # or a 10% FAERS sample
+reports = exposed + background
+atlas = sex_difference_atlas(reports, exposed=lambda r: r["glp1"], min_a=3)   # ROR_f, ROR_m, ratio, q
+agg = aggregate_counts(reports, "ALOPECIA", lambda r: r["glp1"], strata=("indication",))
+adj = adjusted_sex_interaction(agg)                                # crude vs indication-adjusted ratio
+ex = excess_female_reporting(n_female_reports=6500, n_male_reports=3500, users_female=7e6, users_male=3e6)
+```
+
+Module map: `openfda.py` (client), `cohort.py` (agent/brand matching, indication classifier, compounded flag, comparators, `flatten_report`), `sex_signals.py` (sex-specific 2×2, ratio of RORs + LRT, atlas with BH, indication-adjusted interaction, MH pooling), `denominators.py` (MEPS/NHANES users by sex, Poisson rates, rate ratios, propensity ratio, age standardisation).
+
+## Key variables and cohort definitions
+
+| Variable | Definition | Source field(s) |
+|---|---|---|
+| GLP-1 RA exposure | any drug entry matching semaglutide, tirzepatide, liraglutide, dulaglutide, exenatide, lixisenatide, albiglutide or their brands; suspect-only in sensitivity | `openfda.generic_name`, `brand_name`, `medicinalproduct`, `drugcharacterization` |
+| Indication class | obesity / t2d / other / unknown from `drugindication` regex, brand fallback (Wegovy, Zepbound, Saxenda → obesity) | `patient.drug.drugindication` |
+| Compounded | verbatim name with compounding markers, or unmapped bare INN | `medicinalproduct`, absence of `openfda` |
+| Sex | female / male (unknown handled by complete-case + imputation) | `patient.patientsex` |
+| Age band | < 18, 18–44, 45–64, ≥ 65 | `patientonsetage`, unit |
+| Comparators | SGLT2 inhibitors, DPP-4 inhibitors, insulins, phentermine-containing products | `cohort.COMPARATORS` |
+| Background | same-sex non-exposed reports (10 % FAERS sample or comparator class) | derived |
+| Users by sex | survey-weighted persons with ≥ 1 GLP-1 RA fill in the year | MEPS `RXDRGNAM`/`RXNDC` + `SEX`, `PERWT`; NHANES `RXDDRUG` + `RIAGENDR`, `WTINT` |
+| Window | receipt date 2018-01-01 to 2026-06-30; quarterly strata | `receivedate` |
+| Exclusions | on-target PTs (weight decreased, decreased appetite) from the atlas | pre-specified list |

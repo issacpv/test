@@ -77,19 +77,25 @@ def negative_transfer_rate(acc_transfer: Sequence[float], acc_baseline: Sequence
 
 def fit_transfer_mixed_model(df: pd.DataFrame, outcome: str = "accuracy", method_col: str = "method",
                              budget_col: str = "budget", dataset_col: str = "dataset", subject_col: str = "subject",
-                             moderators: Sequence[str] = (), reml: bool = True):
+                             moderators: Sequence[str] = (), reml: bool = True, baseline: Optional[str] = "scratch"):
     """Mixed model ``accuracy ~ method * log(budget+1) [+ moderators]`` with dataset random intercept
     and a subject-in-dataset variance component (statsmodels ``MixedLM``).
 
-    Returns the fitted results object. Falls back to an OLS with cluster-robust SEs by dataset
-    if the mixed model fails to converge (a warning is attached as ``results.fallback``).
+    ``baseline`` names the reference method (coefficients are contrasts against it); if it is not
+    present in the data the alphabetically first method is the reference. Returns the fitted results
+    object. Falls back to an OLS with cluster-robust SEs by dataset if the mixed model fails to
+    converge (a warning is attached as ``results.fallback``).
     """
     import statsmodels.formula.api as smf
 
     data = df.copy()
     data["log_budget"] = np.log(data[budget_col].astype(float) + 1.0)
     data["_subject"] = data[dataset_col].astype(str) + ":" + data[subject_col].astype(str)
-    fixed = f"{outcome} ~ C({method_col}) * log_budget"
+    if baseline is not None and baseline in set(data[method_col].astype(str)):
+        method_term = f"C({method_col}, Treatment(reference='{baseline}'))"
+    else:
+        method_term = f"C({method_col})"
+    fixed = f"{outcome} ~ {method_term} * log_budget"
     if moderators:
         fixed += " + " + " + ".join(moderators)
     try:

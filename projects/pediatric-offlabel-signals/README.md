@@ -101,3 +101,41 @@ Off-label prescribing to children is common (Kimland & Odlind, 2012, *Clin Pharm
 ## Related projects in this repository
 
 `unlabeled-adverse-event-mining` (label-expectedness mining, from which the unlabelled-PT enrichment step is adapted), `faers-reporting-bias` (reporter-type adjustment, stimulated-reporting ITS). This project is self-contained.
+
+## Quick start (starter code)
+
+```bash
+cd projects/pediatric-offlabel-signals
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample --per-drug 300
+PYTHONPATH=src python -m pytest -q tests
+```
+
+```python
+import json
+from peds_offlabel import read_jsonl, floor_from_label, classify_reports, offlabel_signal_table, seriousness_model
+label = json.load(open("data/raw/labels_quetiapine.json"))
+floors = {"QUETIAPINE": floor_from_label(label)}                  # {"min_age_years": 10.0, "status": "approved", "evidence": ...}
+reports = read_jsonl("data/raw/peds_quetiapine.jsonl") + read_jsonl("data/raw/peds_background.jsonl")
+cl = classify_reports(reports, floors)                            # on_label_age / below_floor / ...
+tab = offlabel_signal_table(reports, cl, "QUETIAPINE", min_a=3)   # age-matched ROR ratio per PT, BH q
+ors = seriousness_model(cl)                                       # adjusted OR for below_floor
+```
+
+Module map: `openfda.py` (client), `age.py` (age normalisation, ICH bands, `flatten_report`), `label_ages.py` (regex age-floor extraction with evidence sentences, `classify_age`), `offlabel_signals.py` (report classification, 1-year-age-matched MH RORs, seriousness logistic model, segmented Poisson ITS, class shares by period).
+
+## Key variables and cohort definitions
+
+| Variable | Definition | Source field(s) |
+|---|---|---|
+| Paediatric report | numeric onset age < 18 y, or `patientagegroup` in {neonate, infant, child, adolescent} when age missing | `patientonsetage`, `patientonsetageunit`, `patientagegroup` |
+| Age band | neonate < 28 d; infant 28 d–< 2 y; child 2–< 12 y; adolescent 12–< 18 y | derived |
+| Matching stratum | 1-year age bin (fallback: band) | derived |
+| Labelled floor | minimum established age in `pediatric_use` (precedence) or `indications_and_usage`; "not established below X" used as floor; general "not established" = no paediatric labelling | `drug/label` sections, `effective_time` |
+| Label class | on_label_age / below_floor / no_pediatric_labeling / unknown, per (report, suspect drug); report class = worst | derived |
+| Suspect drug | `drugcharacterization = 1`, harmonised generic name | `patient.drug.*` |
+| Serious / death | FAERS seriousness flags | `serious`, `seriousnessdeath` |
+| Reporter type | physician / pharmacist / other HCP / lawyer / consumer | `primarysource.qualification` |
+| Labelling-change event | FDA Pediatric Labeling Changes entry lowering the floor; ITS window ±36 months | FDA table, DailyMed history |
+| Window | receipt date 2015-01-01 to 2026-06-30 | `receivedate` |

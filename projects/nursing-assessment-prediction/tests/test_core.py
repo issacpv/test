@@ -65,7 +65,8 @@ def test_icd_and_nursing_labels_multiverse():
     assert ps.loc[1, "nurs2_ha24"]  # stage-2 first documented at 60 h -> hospital acquired
     assert ps.loc[2, "nurs1_ha24"] and ps.loc[2, "nurs1_ha48"]
     assert set(summary["definition"]) >= {"icd_any", "icd_stage2plus", "nurs1_ha24", "nurs2_ha48", "icd_and_nurs1_ha24"}
-    assert summary.set_index("definition").loc["icd_any", "probable_poa_frac_of_icd"] == 0.5
+    # three ICD-coded stays; only stay 1 has PI documentation within 24 h of admission
+    assert abs(summary.set_index("definition").loc["icd_any", "probable_poa_frac_of_icd"] - 1 / 3) < 1e-9
     falls = labels.inpatient_fall_icd10(pd.DataFrame({"hadm_id": [1, 1, 2], "icd_code": ["W06.XXXA", "Y92.230", "W06.XXXA"], "icd_version": [10, 10, 10]})).set_index("hadm_id")
     assert falls.loc[1, "inpatient_fall"] and not falls.loc[2, "inpatient_fall"]
 

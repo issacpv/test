@@ -37,9 +37,13 @@ def fit_interaction_mixed_model(
     """
     cov = " + ".join(covariates)
     formula = f"{outcome} ~ {time} * {amyloid} * {wmh}" + (f" + {cov}" if cov else "")
-    d = df.dropna(subset=[outcome, time, amyloid, wmh, *covariates, subject])
+    d = df.dropna(subset=[outcome, time, amyloid, wmh, *covariates, subject]).copy()
+    # centre continuous covariates so that main effects and interactions are on interpretable scales
+    for c in (wmh, *covariates):
+        if np.issubdtype(d[c].dtype, np.number) and d[c].nunique() > 2:
+            d[c] = d[c] - d[c].mean()
     model = smf.mixedlm(formula, d, groups=d[subject], re_formula=f"~{time}" if random_slope else "1")
-    result = model.fit(reml=True, method=["lbfgs"])
+    result = model.fit(reml=True, method=["lbfgs", "bfgs", "cg", "powell"], maxiter=500)
     keys = [f"{time}:{amyloid}", f"{time}:{wmh}", f"{time}:{amyloid}:{wmh}"]
     rows = []
     for k in keys:
@@ -55,13 +59,15 @@ def person_period(
     event_time: str = "event_time",
     event: str = "event",
     period_length: float = 1.0,
+    max_period: Optional[int] = None,
 ) -> pd.DataFrame:
     """Expand a longitudinal table to person-periods for a discrete-time hazard model.
 
     Each subject contributes one row per period until the event/censoring period; time-varying
     covariates are carried forward from the most recent observation at or before the period
     start. Requires per-subject ``event_time`` (years) and ``event`` (0/1) columns (constant
-    within subject).
+    within subject). ``max_period`` lumps later periods into one category (``period_cat``) so
+    that sparse late periods do not cause quasi-separation in the baseline hazard.
     """
     rows = []
     for s, g in df.sort_values(time).groupby(subject):
@@ -75,13 +81,18 @@ def person_period(
             row = src.to_dict()
             row.update({"period": k, "period_start": start, "y": int(ev == 1 and k == n_periods - 1)})
             rows.append(row)
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    out["period_cat"] = out["period"] if max_period is None else out["period"].clip(upper=max_period)
+    return out
 
 
-def discrete_time_hazard(pp: pd.DataFrame, formula_rhs: str, cluster: str = "subject"):
-    """Logistic discrete-time hazard ``y ~ C(period) + <formula_rhs>`` with cluster-robust SEs."""
-    model = smf.logit(f"y ~ C(period) + {formula_rhs}", pp)
-    return model.fit(disp=False, cov_type="cluster", cov_kwds={"groups": pp[cluster]}, maxiter=200)
+def discrete_time_hazard(pp: pd.DataFrame, formula_rhs: str, cluster: str = "subject", baseline: str = "C(period_cat)"):
+    """Logistic discrete-time hazard ``y ~ <baseline> + <formula_rhs>`` with cluster-robust SEs.
+
+    ``baseline`` defaults to period dummies (use ``"period_start"`` for a log-linear baseline).
+    """
+    model = smf.logit(f"y ~ {baseline} + {formula_rhs}", pp)
+    return model.fit(disp=False, method="bfgs", cov_type="cluster", cov_kwds={"groups": pp[cluster]}, maxiter=500)
 
 
 def additive_interaction(b_a: float, b_w: float, b_aw: float) -> Dict[str, float]:

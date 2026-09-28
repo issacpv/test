@@ -107,3 +107,43 @@ Dietary supplements are used by more than half of US adults, are regulated as fo
 ## Related projects in this repository
 
 `faers-reporting-bias` (stimulated-reporting ITS, reporter-type adjustment), `unlabeled-adverse-event-mining` (label expectedness — not applicable to supplements, which have no adverse-reaction labelling; this contrast is itself a discussion point), `faers-ddi-signals` (supplement–drug interaction pairs as a follow-up). This project is self-contained.
+
+## Quick start (starter code)
+
+```bash
+cd projects/caers-supplement-signals
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample --per-query 1000
+PYTHONPATH=src python -m pytest -q tests
+```
+
+```python
+from caers_signals import read_jsonl, screen, serious_fraction_model, monthly_series, segmented_poisson_its, cross_system_concordance
+supp = [r for r in read_jsonl("data/raw/caers_supplements.jsonl") if r["supplement"]]
+tab = screen(supp, exposure_key="ingredients", min_a=3)             # ROR/PRR/IC per (ingredient, PT), BH q
+hep = tab[tab["event"].isin(["HEPATOTOXICITY", "HEPATITIS", "JAUNDICE"])]
+sf = serious_fraction_model(supp, "KRATOM")                          # OR of serious outcome
+s = monthly_series(supp, mask=lambda r: r["serious"])
+its = segmented_poisson_its(s.values, change_index=list(s.index).index(s.index[s.index >= "2007-12-01"][0]))
+faers = screen(read_jsonl("data/raw/faers_kratom.jsonl") + read_jsonl("data/raw/faers_turmeric.jsonl"), min_a=3)
+conc = cross_system_concordance(tab, faers)
+```
+
+Module map: `openfda.py` (client; works for `food/event` and `drug/event`), `normalize.py` (CAERS flattening, product-string normalisation, 55-entry ingredient lexicon, outcome coding, DSLD lookup with cache, FAERS supplement flattening), `signals.py` (ROR/PRR/IC screen, seriousness model, monthly series, segmented Poisson ITS, Poisson CUSUM, cross-system concordance, reference-set AUROC, starter hepatotoxicity reference).
+
+## Key variables and cohort definitions
+
+| Variable | Definition | Source field(s) |
+|---|---|---|
+| Supplement report | ≥ 1 product with industry code 54 in Suspect role | `products.industry_code`, `products.role` |
+| Product string | upper-cased `name_brand` with dose/size tokens and punctuation removed | `products.name_brand` |
+| Ingredient | canonical lexicon class (stage 1) and/or DSLD label ingredients mapped to the lexicon (stage 2) | derived; DSLD API |
+| Event | MedDRA PT as coded by CFSAN | `reactions[]` |
+| Serious | any of death, life-threatening, hospitalization, disability, congenital anomaly, required intervention, other serious/important medical event | `outcomes[]` |
+| Medically attended | ER visit or health-care-provider visit | `outcomes[]` |
+| Sex / age | Female / Male; age in years from `age` + `age_unit` | `consumer.*` |
+| Period | `date_created` month; mandatory-reporting break 2007-12; media windows (Hydroxycut 2009-05, OxyElite Pro 2013-10) | `date_created` |
+| Background | supplement stratum only (primary); all CAERS (secondary) | derived |
+| FAERS supplement report | any verbatim drug name matching the lexicon | `patient.drug.medicinalproduct`, `openfda.generic_name` |
+| Reference positives / negatives | LiverTox HDS ingredients × hepatic PTs; nutrients/probiotics × hepatic PTs, hepatotoxins × unrelated PTs | `reference/*.csv` |
