@@ -47,7 +47,7 @@ def aperiodic_fit(f: np.ndarray, pxx: np.ndarray, fit_range: Tuple[float, float]
 
 
 def find_spectral_peak(f: np.ndarray, residual: np.ndarray, search_range: Tuple[float, float],
-                       min_height: float = 0.1) -> Dict[str, float]:
+                       min_height: float = 0.3) -> Dict[str, float]:
     """Highest residual peak within ``search_range``; returns NaNs if below ``min_height`` (log10 units)."""
     f = np.asarray(f, dtype=float)
     r = np.asarray(residual, dtype=float)
@@ -70,8 +70,11 @@ def find_spectral_peak(f: np.ndarray, residual: np.ndarray, search_range: Tuple[
 
 def sigma_peak(x: np.ndarray, fs: float, search_range: Tuple[float, float] = (8.0, 18.0),
                fit_range: Tuple[float, float] = (1.0, 40.0), nperseg_s: float = 4.0,
-               min_height: float = 0.1) -> Dict[str, float]:
-    """Individualised spindle frequency of an NREM signal: aperiodic-corrected peak in ``search_range``."""
+               min_height: float = 0.3) -> Dict[str, float]:
+    """Individualised spindle frequency of an NREM signal: aperiodic-corrected peak in ``search_range``.
+
+    ``min_height`` is in log10 units above the aperiodic fit (0.3 = twice the 1/f power); pure 1/f noise
+    produces residual fluctuations of ~ +/- 0.15 with 4-s Welch segments, so 0.3 rejects them."""
     f, p = welch_psd(x, fs, nperseg_s=nperseg_s, fmax=min(fit_range[1], fs / 2))
     ap = aperiodic_fit(f, p, fit_range=fit_range, exclude=[search_range, (0.0, 2.0)])
     peak = find_spectral_peak(f, ap["residual"], search_range, min_height=min_height)

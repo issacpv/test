@@ -109,7 +109,7 @@ def test_extraction_prompt_parse_and_multiverse():
         "criteria": [
             {"kind": "age_min", "params": {"years": 18}, "source": "Adults (>=18)"},
             {"kind": "first_icu_stay_only", "params": {"per": "subject"}, "source": "first ICU stay", "ambiguous": True, "alternatives": [{"per": "hadm"}]},
-            {"kind": "min_icu_los_hours", "params": {"hours": 24}, "source": "at least 24 h", "ambiguous": True, "alternatives": [{"hours": 24}, {"hours": 48}]},
+            {"kind": "min_icu_los_hours", "params": {"hours": 24}, "source": "at least 24 h", "ambiguous": True, "alternatives": [{"hours": 24}, {"kind": "min_hospital_los_hours", "hours": 24}]},
         ],
         "outcome": {"kind": "in_hospital_mortality", "source": "died in hospital"},
         "reported_n": 1234,
@@ -121,9 +121,10 @@ def test_extraction_prompt_parse_and_multiverse():
     assert rt.canonical_hash() == d.canonical_hash()
     mv = cs.enumerate_multiverse(d)
     assert len(mv) == 4 and mv[0].canonical_hash() == d.canonical_hash() and len({m.canonical_hash() for m in mv}) == 4
-    bad = dict(raw, criteria=[{"kind": "magic", "params": {}}, {"kind": "age_min", "params": {}}])
+    assert {m.criteria[2].kind for m in mv} == {"min_icu_los_hours", "min_hospital_los_hours"}  # kind-level ambiguity
+    bad = dict(raw, criteria=[{"kind": "magic", "params": {}}, {"kind": "age_min", "params": {}}, {"kind": "age_min", "params": {"years": 18}, "alternatives": [{"kind": "nope"}]}])
     probs = cs.validate_definition_dict(bad)
-    assert any("unknown kind" in p for p in probs) and any("missing param" in p for p in probs)
+    assert any("unknown kind" in p for p in probs) and any("missing param" in p for p in probs) and any("alternatives[0]" in p for p in probs)
     with pytest.raises(ValueError):
         cs.parse_extraction(bad, "p1")
 

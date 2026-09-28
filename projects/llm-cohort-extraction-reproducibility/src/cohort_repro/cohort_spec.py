@@ -165,7 +165,9 @@ def validate_definition_dict(d: Dict[str, Any]) -> List[str]:
                 problems.append(f"criteria[{i}] ({kind}): unexpected param {k!r}")
         for j, alt in enumerate(c.get("alternatives", []) or []):
             if not isinstance(alt, dict):
-                problems.append(f"criteria[{i}].alternatives[{j}] must be a params object")
+                problems.append(f"criteria[{i}].alternatives[{j}] must be a params object (optionally with its own 'kind')")
+            elif "kind" in alt and alt["kind"] not in CRITERION_KINDS:
+                problems.append(f"criteria[{i}].alternatives[{j}]: unknown kind {alt['kind']!r}")
     out = d.get("outcome")
     if out is not None:
         if not isinstance(out, dict) or out.get("kind") not in OUTCOME_KINDS:
@@ -224,17 +226,23 @@ def build_extraction_prompt(paper_text: str, database_hint: Optional[str] = None
 def enumerate_multiverse(defn: CohortDefinition, max_variants: int = 64) -> List[CohortDefinition]:
     """All definitions obtained by choosing, for each ambiguous criterion, the original or one alternative.
 
+    An alternative is a parameter dict; it may also carry a ``kind`` key to express a kind-level
+    ambiguity (e.g. ``min_icu_los_hours`` vs ``min_hospital_los_hours`` for "stayed at least 24 h").
     The first element is always the original definition. The product is capped at ``max_variants``.
     """
-    choices: List[List[Dict[str, Any]]] = []
+    choices: List[List[tuple]] = []  # per criterion: list of (kind, params)
     for c in defn.criteria:
-        if c.ambiguous and c.alternatives:
-            choices.append([c.params] + [a for a in c.alternatives if a != c.params])
-        else:
-            choices.append([c.params])
+        opts = [(c.kind, dict(c.params))]
+        if c.ambiguous:
+            for a in c.alternatives:
+                a = dict(a)
+                kind = str(a.pop("kind", c.kind))
+                if (kind, a) not in opts:
+                    opts.append((kind, a))
+        choices.append(opts)
     variants: List[CohortDefinition] = []
     for combo in itertools.product(*choices):
-        crits = [Criterion(kind=c.kind, params=dict(p), source=c.source, ambiguous=c.ambiguous, alternatives=list(c.alternatives)) for c, p in zip(defn.criteria, combo)]
+        crits = [Criterion(kind=kind, params=dict(p), source=c.source, ambiguous=c.ambiguous, alternatives=list(c.alternatives)) for c, (kind, p) in zip(defn.criteria, combo)]
         d = CohortDefinition.from_dict({**defn.to_dict(), "criteria": [asdict(x) for x in crits]})
         variants.append(d)
         if len(variants) >= max_variants:

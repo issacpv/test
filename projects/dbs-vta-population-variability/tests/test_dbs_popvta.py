@@ -102,7 +102,7 @@ def test_axon_paths_descriptors_and_placement():
     paths = mp.axon_paths(swc, min_length_mm=0.2)
     assert len(paths) == 2
     lengths = sorted(p.shape[0] for p in paths)
-    assert lengths == [5, 6]  # soma + axon nodes on each root-to-terminal path
+    assert lengths == [4, 5]  # soma attachment + axon nodes on each root-to-terminal path
     bp = mp.branch_points(swc)
     assert bp.shape == (1, 3) and bp[0, 2] == pytest.approx(-0.3)
     d = mp.path_descriptors(paths[0])

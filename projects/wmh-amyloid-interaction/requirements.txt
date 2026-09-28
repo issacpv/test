@@ -1,0 +1,14 @@
+# Core (used by src/wmh_amyloid and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # NITRC/XNAT REST (scripts/download_data.py)
+
+# Imaging (optional; needed to compute WMH features from real masks)
+# nibabel>=5.2
+# scikit-image>=0.22
+# lifelines>=0.28       # Cox models as a cross-check of the discrete-time hazard

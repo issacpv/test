@@ -70,6 +70,24 @@ Pipeline (modules in `src/spatial_null_audit/`):
 
 Tools: numpy/scipy (all nulls), neuromaps + nibabel (maps, transforms, parcellation), abagen (AHBA), eigenstrapping (optional), statsmodels (meta-regression), requests (NeuroVault, E-utilities).
 
+### Null families audited
+
+| Null | What it preserves | Known failure mode | Implementation here |
+|---|---|---|---|
+| Naive permutation | value distribution only | ignores autocorrelation; badly anti-conservative on smooth maps (Markello & Misic, 2021) | `nulls.naive_permutation` |
+| Spin, nearest-neighbour (Alexander-Bloch 2018) | values + geometry via rotation | duplicates/missing parcels after reassignment; projection distortion inflates FPR | `nulls.spin_surrogates(assignment='nearest')` |
+| Spin, one-to-one (Váša 2018) | values exactly (a permutation) + geometry | same projection issue; greedy matching is O(n^2) | `nulls.spin_surrogates(assignment='unique')` |
+| Projection-corrected spin (Imaging Neuroscience, 2025) | as above, only rotations with matching autocorrelation | lower power; needs a tolerance choice | `nulls.spin_surrogates(sa_tolerance=...)` |
+| Moran spectral randomisation (Wagner & Dray 2015) | Moran's I spectrum (autocorrelation at all scales) | Gaussian-like surrogates; needs a weight kernel | `nulls.moran_surrogates` |
+| Variogram-matched (Burt 2020, BrainSMASH) | empirical variogram up to a distance cut-off | reported FPR inflation for strongly autocorrelated maps (Koussis et al., 2025) | `nulls.variogram_surrogates` |
+| Eigenstrapping (Koussis et al., 2025) | geometric-eigenmode power spectrum on the mesh | requires the surface mesh; slower | wrapper via `audit_pair(extra_nulls=...)` |
+
+Each claim is run with all seven; the practice survey records which one the paper used.
+
+### Per-claim output record
+
+For every claim the audit writes `outputs/audit/<claim_id>.json` with: observed Pearson and Spearman r; for each null the p-value, the SD of the null correlation distribution and the mean absolute deviation of surrogate Moran's I from the original; the exponential-variogram length lambda and Moran's I of both maps; the null-robustness index; and the class (`confirmed` / `fragile` / `flipped` / `reported_null`). The calibration experiment writes `outputs/calibration/<parcellation>_<lambda>.csv` with each null's FPR and Wilson CI. These two files are the inputs to the flip meta-regression and are released with the paper.
+
 ## Evaluation & statistics
 
 - Every null uses the same 10,000 surrogates per claim and the same seed policy (seed = hash of claim id) for reproducibility.

@@ -9,11 +9,17 @@ region efflux constant; DVR = BP_ND + 1. Times in minutes.
 """
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
 import pandas as pd
 from scipy.integrate import cumulative_trapezoid
+from scipy.signal import fftconvolve
 
 from .tacs import FrameTiming
+
+DT_DEFAULT = 1.0 / 12.0  # 5-second fine grid (frames are ≥ 10 s)
+_BASIS_CACHE: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 
 # ----------------------------------------------------------------------------
 # forward model helpers
@@ -43,10 +49,32 @@ def _conv_exp(t_fine: np.ndarray, y_fine: np.ndarray, rate: float) -> np.ndarray
     """(y ⊗ exp(−rate·t))(t) on a uniform fine grid."""
     dt = t_fine[1] - t_fine[0]
     kern = np.exp(-rate * t_fine)
-    return np.convolve(y_fine, kern)[: len(t_fine)] * dt
+    return fftconvolve(y_fine, kern)[: len(t_fine)] * dt
 
 
-def srtm_forward(cr: np.ndarray, timing: FrameTiming, r1: float, k2: float, bp: float, dt: float = 1.0 / 60.0) -> np.ndarray:
+def default_k2a_grid() -> np.ndarray:
+    return np.logspace(np.log10(0.006), np.log10(0.6), 100)
+
+
+def basis_matrix(cr: np.ndarray, timing: FrameTiming, k2a_grid: np.ndarray | None = None,
+                 dt: float = DT_DEFAULT) -> tuple[np.ndarray, np.ndarray]:
+    """Frame-averaged basis functions C_R ⊗ exp(−k2a·t) for every k2a (cached; independent of the target)."""
+    k2a_grid = default_k2a_grid() if k2a_grid is None else np.asarray(k2a_grid, float)
+    cr = np.asarray(cr, float)
+    key = hashlib.md5(cr.tobytes() + timing.start.tobytes() + timing.duration.tobytes() + k2a_grid.tobytes()
+                      + np.float64(dt).tobytes()).hexdigest()
+    if key in _BASIS_CACHE:
+        return _BASIS_CACHE[key]
+    t = _fine_grid(timing, dt)
+    crf = _interp_tac(t, timing, cr)
+    B = np.stack([_frame_average(t, _conv_exp(t, crf, k), timing) for k in k2a_grid], axis=1)
+    if len(_BASIS_CACHE) > 256:
+        _BASIS_CACHE.clear()
+    _BASIS_CACHE[key] = (k2a_grid, B)
+    return k2a_grid, B
+
+
+def srtm_forward(cr: np.ndarray, timing: FrameTiming, r1: float, k2: float, bp: float, dt: float = DT_DEFAULT) -> np.ndarray:
     """Frame-averaged target TAC predicted by SRTM from a reference TAC."""
     t = _fine_grid(timing, dt)
     crf = _interp_tac(t, timing, cr)
@@ -74,18 +102,16 @@ def frame_weights(timing: FrameTiming, ct: np.ndarray, scheme: str = "duration")
 
 
 def fit_srtm(ct: np.ndarray, cr: np.ndarray, timing: FrameTiming, weights: np.ndarray | None = None,
-             k2a_grid: np.ndarray | None = None, dt: float = 1.0 / 60.0) -> dict:
+             k2a_grid: np.ndarray | None = None, dt: float = DT_DEFAULT) -> dict:
     """SRTM via basis functions: grid over k2a, linear LS for (R1, θ2)."""
     ct = np.asarray(ct, float)
     cr = np.asarray(cr, float)
     w = np.ones(len(ct)) if weights is None else np.asarray(weights, float)
     sw = np.sqrt(w)
-    k2a_grid = np.logspace(np.log10(0.006), np.log10(0.6), 100) if k2a_grid is None else k2a_grid
-    t = _fine_grid(timing, dt)
-    crf = _interp_tac(t, timing, cr)
+    k2a_grid, B = basis_matrix(cr, timing, k2a_grid, dt)
     best = None
-    for k2a in k2a_grid:
-        basis = _frame_average(t, _conv_exp(t, crf, k2a), timing)
+    for j, k2a in enumerate(k2a_grid):
+        basis = B[:, j]
         A = np.column_stack([cr, basis]) * sw[:, None]
         theta, *_ = np.linalg.lstsq(A, ct * sw, rcond=None)
         resid = ct - (theta[0] * cr + theta[1] * basis)
@@ -101,17 +127,15 @@ def fit_srtm(ct: np.ndarray, cr: np.ndarray, timing: FrameTiming, weights: np.nd
 
 
 def fit_srtm2(ct: np.ndarray, cr: np.ndarray, timing: FrameTiming, k2prime: float, weights: np.ndarray | None = None,
-              k2a_grid: np.ndarray | None = None, dt: float = 1.0 / 60.0) -> dict:
+              k2a_grid: np.ndarray | None = None, dt: float = DT_DEFAULT) -> dict:
     """SRTM2: k2′ fixed; for each k2a fit R1 only (1-parameter linear LS)."""
     ct = np.asarray(ct, float)
     cr = np.asarray(cr, float)
     w = np.ones(len(ct)) if weights is None else np.asarray(weights, float)
-    k2a_grid = np.logspace(np.log10(0.006), np.log10(0.6), 100) if k2a_grid is None else k2a_grid
-    t = _fine_grid(timing, dt)
-    crf = _interp_tac(t, timing, cr)
+    k2a_grid, B = basis_matrix(cr, timing, k2a_grid, dt)
     best = None
-    for k2a in k2a_grid:
-        basis = _frame_average(t, _conv_exp(t, crf, k2a), timing)
+    for j, k2a in enumerate(k2a_grid):
+        basis = B[:, j]
         x = cr + (k2prime - k2a) * basis
         r1 = float(np.sum(w * x * ct) / np.sum(w * x * x))
         resid = ct - r1 * x

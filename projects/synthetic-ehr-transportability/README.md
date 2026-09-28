@@ -66,6 +66,19 @@ Pipeline (modules in `src/synth_transport/`):
 
 Tools: DuckDB, pandas, scikit-learn, LightGBM, SDV, synthcity, Synthea (Java), statsmodels.
 
+### Concept coverage across sources
+
+| Block | Concepts | MIMIC-IV | eICU-CRD | Synthea |
+|---|---|---|---|---|
+| demographics | age, sex | `patients.anchor_age/anchor_year`, `gender` | `patient.age` ('> 89' -> 90), `gender` | `BIRTHDATE`, `GENDER` |
+| context | emergency admission; prior encounters in 365 d | `admissions.admission_type`; admissions history | `hospitaladmitsource`; not available (single-stay records) | `ENCOUNTERCLASS == 'emergency'`; encounter history |
+| conditions | diabetes, hypertension, heart failure, COPD, CKD, cancer | `diagnoses_icd` ICD-9/10 prefixes | `diagnosis.icd9code`, `pastHistory` | `conditions.CODE` (SNOMED) active at START |
+| labs | creatinine, sodium, potassium, glucose, haemoglobin, WBC, platelets, bicarbonate, BUN, lactate (first value, 24 h) | `labevents.itemid` | `lab.labname` | `observations.CODE` (LOINC) |
+| observation | per-lab measurement count and missingness indicator | counts in 24 h | counts in 24 h | counts within encounter |
+| outcomes | in-hospital mortality; 30-day readmission | `hospital_expire_flag`; next `admittime` | `hospitaldischargestatus`; not available | `DEATHDATE` in [START, STOP]; next inpatient START |
+
+The exact identifiers are in `ontology.CONDITIONS`, `ontology.LABS` and `ontology.FEATURE_SPEC`; `ontology.verify_spec()` fails if any concept lacks a definition for any source. Concepts unavailable in a source (eICU prior encounters and readmission) are set to NaN and excluded from the comparisons that involve that source, and the resulting coverage table is reported in the paper.
+
 ## Evaluation & statistics
 
 - Splits: MIMIC-IV patients split 70/30 (generator + model training / source holdout) by `subject_id`; eICU is never used for fitting except in the recalibration experiment, where the recalibration sample is disjoint from the evaluation sample.

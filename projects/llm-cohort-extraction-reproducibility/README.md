@@ -71,6 +71,26 @@ Models: at least one model each from the 7-9B, 14-32B and 70B classes, full prec
 
 Tools: vLLM or llama.cpp (server), transformers, DuckDB, pandas, MIMIC-Code SQL concepts, PubMed E-utilities.
 
+### The cohort DSL
+
+| Criterion kind | Parameters | Typical paper wording |
+|---|---|---|
+| `age_min` / `age_max` | `years`, optional `at` (icu_intime / hosp_admittime) | "adult patients (>= 18 years)" |
+| `first_icu_stay_only` | `per` = subject (default) or hadm | "only the first ICU stay was included" (ambiguous: per patient or per admission) |
+| `first_admission_only` | - | "first hospital admission" |
+| `min_icu_los_hours` / `max_icu_los_hours` | `hours` | "ICU stay of at least 24 h" (ambiguous when "stay" is not qualified) |
+| `min_hospital_los_hours` | `hours` | "hospitalised for more than one day" |
+| `care_unit_in` / `care_unit_not_in` | `units` (first_careunit values) | "medical ICU patients"; "excluding cardiac surgery recovery unit" |
+| `admission_type_in` | `types` | "emergency admissions only" |
+| `require_icd_prefix` / `exclude_icd_prefix` | `prefixes`, optional `icd_version` | "sepsis (ICD-9 995.91/995.92)"; "excluding patients with cancer" |
+| `require_lab_measured` | `itemids`, `window_hours` | "at least one lactate measurement in the first 24 h" |
+| `exclude_death_within_hours` | `hours`, optional `from` | "patients who died within 6 h of ICU admission were excluded" |
+| `exclude_missing_outcome` | - | "patients with unknown discharge status were excluded" |
+
+Outcomes: `in_hospital_mortality`, `icu_mortality`, `mortality_30d/90d/1y`, `icu_los_gt_hours`, `readmission_30d`. Units: `icustay`, `hadm`, `subject`.
+
+Worked example. The sentence "We included adult patients (>= 18 years) on their first ICU admission who stayed at least 24 hours; patients who died within 6 hours were excluded" is extracted as four criteria: `age_min{years: 18}`; `first_icu_stay_only{per: subject}` flagged ambiguous with alternative `{per: hadm}`; `min_icu_los_hours{hours: 24}` flagged ambiguous with the kind-level alternative `{kind: min_hospital_los_hours, hours: 24}` (alternatives may switch kind, so "stay" unqualified as ICU or hospital is representable); and `exclude_death_within_hours{hours: 6, from: icu_intime}`. `enumerate_multiverse` yields the 2 x 2 = 4 definitions consistent with the text; the compiler executes each; the spread of the four cohort sizes is the paper's *ambiguity range* against which its reported n is judged.
+
 ## Evaluation & statistics
 
 - Unit of analysis: one paper (primary cohort). Calibration set: the Johnson et al. (2017) papers with their hand-reproduced n as an additional reference.

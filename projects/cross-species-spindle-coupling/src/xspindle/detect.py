@@ -83,16 +83,29 @@ def spindle_envelope(x: np.ndarray, fs: float, center_freq: float, half_bandwidt
     return env, inst_f
 
 
-def detect_spindles(x: np.ndarray, fs: float, center_freq: float, half_bandwidth: float = 2.0,
-                    thresh_percentile: float = 95.0, min_cycles: Optional[float] = 5.0,
-                    max_cycles: Optional[float] = 30.0, min_dur: Optional[float] = None,
-                    max_dur: Optional[float] = None, merge_gap_s: float = 0.1,
-                    envelope: Optional[np.ndarray] = None) -> pd.DataFrame:
-    """Detect spindles as supra-threshold envelope segments in the individualised band.
+def _segments(mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    d = np.diff(mask.astype(int))
+    starts = np.flatnonzero(d == 1) + 1
+    ends = np.flatnonzero(d == -1) + 1
+    if mask[0]:
+        starts = np.insert(starts, 0, 0)
+    if mask[-1]:
+        ends = np.append(ends, len(mask))
+    return starts, ends
 
-    Duration limits are given in cycles of ``center_freq`` (scale-free) unless ``min_dur``/``max_dur`` in
-    seconds are passed explicitly (conventional rule). The threshold is a percentile of the envelope over the
-    whole (NREM) signal passed in; pass a pre-computed ``envelope`` to reuse it across specifications.
+
+def detect_spindles(x: np.ndarray, fs: float, center_freq: float, half_bandwidth: float = 2.0,
+                    thresh_percentile: float = 95.0, boundary_percentile: float = 80.0,
+                    min_cycles: Optional[float] = 5.0, max_cycles: Optional[float] = 30.0,
+                    min_dur: Optional[float] = None, max_dur: Optional[float] = None, merge_gap_s: float = 0.1,
+                    envelope: Optional[np.ndarray] = None) -> pd.DataFrame:
+    """Detect spindles with a two-threshold rule on the envelope of the individualised band.
+
+    A candidate must exceed the *detection* threshold (``thresh_percentile`` of the envelope over the NREM
+    signal); its extent is the surrounding segment above the lower *boundary* threshold (``boundary_percentile``),
+    as in classic two-threshold spindle detectors. Duration limits are in cycles of ``center_freq`` (scale-free)
+    unless ``min_dur``/``max_dur`` in seconds are passed (conventional rule). Pass a pre-computed ``envelope``
+    to reuse it across specifications.
 
     Returns columns start_s, end_s, peak_s, duration_s, peak_amp, freq_hz, n_cycles.
     """
@@ -104,21 +117,17 @@ def detect_spindles(x: np.ndarray, fs: float, center_freq: float, half_bandwidth
     lo_dur = min_dur if min_dur is not None else (min_cycles / center_freq)
     hi_dur = max_dur if max_dur is not None else (max_cycles / center_freq)
     thr = np.percentile(env, thresh_percentile)
-    above = env >= thr
-    d = np.diff(above.astype(int))
-    starts = np.flatnonzero(d == 1) + 1
-    ends = np.flatnonzero(d == -1) + 1
-    if above[0]:
-        starts = np.insert(starts, 0, 0)
-    if above[-1]:
-        ends = np.append(ends, len(above))
+    thr_b = np.percentile(env, min(boundary_percentile, thresh_percentile))
+    b_starts, b_ends = _segments(env >= thr_b)
+    # keep boundary segments that contain at least one detection-threshold sample
+    kept = [(int(s), int(e)) for s, e in zip(b_starts, b_ends) if np.any(env[s:e] >= thr)]
     # merge segments separated by short gaps
     merged = []
-    for s, e in zip(starts, ends):
+    for s, e in kept:
         if merged and (s - merged[-1][1]) / fs <= merge_gap_s:
             merged[-1][1] = e
         else:
-            merged.append([int(s), int(e)])
+            merged.append([s, e])
     rows = []
     for s, e in merged:
         dur = (e - s) / fs

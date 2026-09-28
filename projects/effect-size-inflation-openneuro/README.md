@@ -65,6 +65,14 @@ Pipeline (each step maps to a module in `src/es_inflation/`):
 
 Tools: requests (GraphQL), pandas, numpy/scipy, statsmodels, Nilearn (GLMs, only for the re-analysis subset), DataLad/openneuro-py for derivatives, NeuroVault REST API.
 
+### Worked example of the correction
+
+A one-sample task contrast reported as peak t(19) = 4.2 with n = 20 at a voxel-wise p < 0.001 threshold gives d_hat = 4.2 / sqrt(20) = 0.94 with se ~ 0.26. The selection threshold is c = z_{0.9995} = 3.29, so only |d_hat| > 0.86 could have been reported. Under the truncated-normal model the conditional MLE (`winners_curse.conditional_mle`) shrinks the estimate to roughly d ~ 0.6, with a profile-likelihood CI that extends well below 0.3; the Type M exaggeration ratio at d = 0.6 and n = 20 is about 1.5 (`type_m_error`), and 80% power on the corrected effect needs n ~ 25-30 (`required_n`), versus n > 90 if the true effect were 0.3. The corpus table repeats this calculation for every paper, and the re-analysis subset tests whether the circular/cross-validated ratio measured on the data agrees with the model-based shrinkage.
+
+### Annotation table
+
+`data/papers/effects_annotated.csv` has one row per reported primary effect with the columns in `effects.ANNOTATION_COLUMNS`: `dataset_id, doi, contrast, design (one_sample | paired | two_sample | correlation), stat_type (t | z | F | r), stat_value, df, n1, n2, threshold_type (voxel_fwe | voxel_fdr | voxel_unc | cluster_fwe | roi_apriori), threshold_p, peak_selected_by_search (0/1), annotator`. `effects.annotation_to_effect` converts each row into `d, se_d, threshold_z`. Two annotators complete the first 50 rows independently; disagreements on `stat_value`, `n1` or `threshold_type` are adjudicated before the remaining rows are split.
+
 ## Evaluation & statistics
 
 - Unit of analysis: one primary effect per paper (pre-specified as the first reported whole-brain peak for the paper's main contrast). Sensitivity: all reported peaks with paper as a random effect.
