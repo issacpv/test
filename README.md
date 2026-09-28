@@ -31,6 +31,10 @@ tools/split_into_repos.sh --github <user>  # also create (private) GitHub repos 
 
 Every `.py` file compiles and every project's synthetic-data test suite passes (see the ✅ column; ⚠️ marks projects with a known non-blocking issue noted at the bottom). Literature checks were run against 2023–2026 papers; because the sandbox's web-search budget and some publisher sites were limited, a minority of very recent papers are cited by title/venue/year without full author lists, and READMEs flag specific facts (dataset sizes, accession IDs, API paths) to re-verify before use. **No citations or DOIs were invented.**
 
+## Literature check
+
+`tools/litcheck.py` queries Europe PMC, PubMed, arXiv and Crossref (OpenAlex / Semantic Scholar when keys are set) with curated queries per project, scores papers by key-term coverage and walks the citation neighbourhood. Results: [`litcheck/SUMMARY.md`](litcheck/SUMMARY.md) (all 113 ranked by near-miss risk) and [`litcheck/VERDICTS.md`](litcheck/VERDICTS.md) (deep-read verdicts for the 29 highest-risk projects: 0 closed, 12 narrowed, 17 open). Re-run with `CROSSREF_MAILTO=you@example.org python tools/litcheck.py`.
+
 ## Project index
 
 
