@@ -1,0 +1,52 @@
+# data and outputs are never committed
+data/*
+!data/README.md
+outputs/
+runs/
+nilearn_data/
+
+# imaging / large binary formats
+*.nii
+*.nii.gz
+*.dtseries.nii
+*.ptseries.nii
+*.dlabel.nii
+*.gii
+*.edf
+*.nwb
+*.zip
+*.tar
+*.tar.gz
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.pt
+*.pth
+
+# tabular downloads
+*.csv
+*.tsv
+*.xlsx
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+
+# environments / secrets
+.env
+.venv/
+venv/
+*.netrc
+.aws/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store

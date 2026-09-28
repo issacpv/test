@@ -97,6 +97,67 @@ No credentialed data are involved.
 - [ ] Comparison with empirical AIS-dendrite covariation (H4).
 - [ ] Preprint, code and per-neuron demand table released.
 
+## Quick start
+
+```bash
+cd projects/ais-plasticity-real-morphologies
+pip install -r requirements.txt
+python scripts/download_data.py --sample        # 20 mouse pyramidal records, 5 SWC files
+PYTHONPATH=src pytest -q                        # passive-load, theory and trace-feature tests (no NEURON needed)
+```
+
+Passive load and plasticity demand for a folder of reconstructions (no NEURON required):
+
+```python
+from pathlib import Path
+import pandas as pd
+from ais_plasticity.swc import read_swc, ball_and_stick
+from ais_plasticity.dendritic_load import load_metrics
+from ais_plasticity.ais_theory import AISParams, plasticity_demand
+
+ref = load_metrics(ball_and_stick(r_soma=10, diam=2, length=400))   # or a chosen reference reconstruction
+rows = {}
+for f in Path("data/swc").rglob("*.CNG.swc"):
+    load = load_metrics(read_swc(f))
+    rows[f.stem] = {**load, **plasticity_demand(load, ref, AISParams())}
+table = pd.DataFrame.from_dict(rows, orient="index")
+print(table[["c_eff_1000hz_pf", "input_conductance_ns", "delta_distance_um", "delta_length_um"]].describe())
+```
+
+The NEURON step (`neuron_builder.build_model`, `run_step`, `rheobase`, `spike_features`) needs `pip install neuron`
+and compiled ModelDB mechanisms (`nrnivmodl` in the folder holding the `.mod` files).
+
+## Pre-registered analysis table
+
+| # | Unit of analysis | Primary outcome | Estimand / test | Decision rule | Confirmatory / exploratory |
+|---|---|---|---|---|---|
+| H1 | reconstruction (fixed AIS 30/40 um) | somatic voltage threshold; rheobase | mixed model on log C_eff(1 kHz), archive random intercept; CV of threshold vs. rheobase | threshold range < 3 mV over a 10x load range; rheobase ratio > 5 | confirmatory |
+| H2 | reconstruction | AIS distance restoring AP amplitude set point | slope of demand on log load, cluster bootstrap over archives | slope CI excludes 0; sign as predicted by theory | confirmatory |
+| H3 | reconstruction x AIS geometry | simulated threshold | R^2 and calibration slope of theory vs. NEURON; deviation vs. AIS length | R^2 > 0.8 for point-like AIS | confirmatory |
+| H4 | cell class | AIS distance vs. dendritic size slope | predicted (demand model) vs. measured slope, CIs | measured slope within predicted CI; constant-AIS model rejected | confirmatory |
+| H5 | reconstruction x channel set | plasticity demand | nested ANOVA / mixed model: morphology vs. channel-set variance | morphology variance share > channel-set share | confirmatory |
+| S1 | reconstruction | onset rapidness, max dV/dt | descriptive vs. load | - | exploratory |
+
+Set points are defined on Allen Cell Types matched electrophysiology per class (median rheobase, threshold, AP amplitude) before any NeuroMorpho morphology is simulated.
+
+## Key references
+
+- Grubb MS, Burrone J (2010) Activity-dependent relocation of the axon initial segment fine-tunes neuronal excitability. *Nature*.
+- Kuba H, Oichi Y, Ohmori H (2010) Presynaptic activity regulates Na+ channel distribution at the axon initial segment. *Nature*.
+- Brette R (2013) Sharpness of spike initiation in neurons explained by compartmentalization. *PLoS Comput Biol*.
+- Gulledge AT, Bravo JJ (2016) Neuron morphology influences axon initial segment plasticity. *eNeuro*.
+- Hamada MS, Goethals S, de Vries SI, Brette R, Kole MHP (2016) Covariation of axon initial segment location and dendritic tree normalizes the somatic action potential. *PNAS*.
+- Kole MHP, Brette R (2018) The electrical significance of axon location diversity. *Curr Opin Neurobiol*.
+- Goethals S, Brette R (2020) Theoretical relation between axon initial segment geometry and excitability. *eLife*.
+- Verbist C, Salvade MG, Giugliano M (2020) The location of the axon initial segment affects the bandwidth of spike initiation dynamics. *PLoS Comput Biol*.
+- Fekete A et al. (2021) Neural excitability increases with axonal resistance between soma and axon initial segment. *PNAS*.
+- Jamann N et al. (2021) Sensory input drives rapid homeostatic scaling of the axon initial segment in mouse barrel cortex. *Nat Commun*.
+- Lezmy J et al. (2017) M-current inhibition rapidly induces a unique CK2-dependent plasticity of the axon initial segment. *PNAS*.
+- Hu W et al. (2009) Distinct contributions of Nav1.6 and Nav1.2 in action potential initiation and backpropagation. *Nat Neurosci*.
+- Hallermann S, de Kock CPJ, Stuart GJ, Kole MHP (2012) State and location dependence of action potential metabolic cost in cortical pyramidal neurons. *Nat Neurosci*.
+- Jenkins PM, Bender KJ (2025) Axon initial segment structure and function in health and disease. *Physiol Rev*.
+- "Diversity of axon initial segment geometry in the mouse hippocampus" (2025) *Cereb Cortex* (population AIS geometry dataset used for H4).
+
 ## Ethics / data-use notes
 
 - NeuroMorpho.org and ModelDB data are open; cite each depositing publication and ModelDB accession in any output.

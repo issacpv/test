@@ -155,7 +155,8 @@ def load_potential_signals(path_or_df, dictionary=None, drug_normalizer=None) ->
     audited manually.
     """
     df = pd.read_csv(path_or_df) if isinstance(path_or_df, str) else path_or_df.copy()
-    df["quarter"] = df["quarter"].map(_quarter_from_text) if df["quarter"].dtype == object else df["quarter"]
+    if not isinstance(df["quarter"].dtype, pd.PeriodDtype):
+        df["quarter"] = df["quarter"].map(lambda q: q if isinstance(q, pd.Period) else _quarter_from_text(q))
     rows = []
     for _, r in df.iterrows():
         products = re.split(r";|/|\band\b|,", re.sub(r"\([^)]*\)", "", str(r["product"])))

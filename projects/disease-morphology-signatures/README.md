@@ -94,6 +94,61 @@ No credentialed data are involved.
 - [ ] Moderator analyses (H5); leave-one-archive-out influence.
 - [ ] Preprint, code and curated condition-mapping table released.
 
+## Quick start
+
+```bash
+cd projects/disease-morphology-signatures
+pip install -r requirements.txt
+python scripts/download_data.py --sample        # API smoke test: 2 pages of mouse records, 5 SWC files
+PYTHONPATH=src pytest -q                        # synthetic-data tests of every module
+```
+
+Minimal analysis skeleton once `data/metadata/cohort.parquet` and `data/swc/` exist:
+
+```python
+import pandas as pd
+from pathlib import Path
+from disease_morph.swc import morphometrics_table
+from disease_morph.meta import contrast_effects, random_effects, signature_similarity_test
+from disease_morph.passive import electrotonic_summary
+from disease_morph.swc import parse_swc
+
+cohort = pd.read_parquet("data/metadata/cohort.parquet").set_index("neuron_name")
+feats = morphometrics_table(Path("data/swc").rglob("*.CNG.swc"))
+df = cohort.join(feats, how="inner")
+eff = contrast_effects(df, "total_length")                     # Hedges' g per archive stratum
+ad = eff[eff.condition_class == "ad_model"]
+print(random_effects(ad.g, ad["var"], method="REML"))          # pooled g, HKSJ CI, tau2, I2
+print(signature_similarity_test(df, ["total_length", "n_bifurcations", "sholl_auc"], "ad_model", "aging"))
+```
+
+## Pre-registered analysis table
+
+| # | Unit of analysis | Primary outcome | Estimand / test | Decision rule | Confirmatory / exploratory |
+|---|---|---|---|---|---|
+| H1 | archive stratum (>= 5 cases, >= 5 controls) | total dendritic length; branch points | REML pooled g with HKSJ 95% CI; I^2 with CI | CI excludes 0; I^2 reported | confirmatory |
+| H2 | condition signature (vector of pooled g over 12 morphometrics) | cosine(AD, aging) | within-archive label permutation, 1,000 draws | p < 0.05 and distal-Sholl meta-regression age term | confirmatory |
+| H3 | archive stratum x cell class | branch points, total length | meta-regression with cell-class moderator; R^2_meta | granule vs. pyramidal coefficients of opposite sign, BH q < 0.05 | confirmatory |
+| H4 | reconstruction (control cells with disease effect applied) | somatic input resistance | pooled electrotonic g; posterior sampling of morphological g | |change| > 10% with CI excluding 0 | confirmatory |
+| H5 | archive stratum | all morphometrics | Egger intercept; shrinkage moderator | p < 0.05 (reported, not decisive) | exploratory |
+| S1 | archive | leave-one-archive-out classification of condition | balanced accuracy vs. permutation | descriptive | exploratory |
+
+Morphometrics entering the signature (fixed before analysis): total length, n bifurcations, n tips, max branch order, mean branch length, max Euclidean extent, max path extent, hull volume, Sholl AUC, Sholl peak, Sholl crossings at 100/200/300 um, mean diameter.
+
+## Key references
+
+- Ascoli GA, Donohue DE, Halavi M (2007) NeuroMorpho.Org: a central resource for neuronal morphologies. *J Neurosci*.
+- Akram MA, Nanda S, Maraver P, Armananzas R, Ascoli GA (2018) An open repository for single-cell reconstructions of the brain forest. *Sci Data*.
+- Ascoli GA and colleagues (2024) Accelerating the continuous community sharing of digital neuromorphology data. *FASEB BioAdvances*.
+- Polavaram S, Gillette TA, Parekh R, Ascoli GA (2014) Statistical analysis and data mining of digital reconstructions of dendritic morphologies. *Front Neuroanat*.
+- Siskova Z et al. (2014) Dendritic structural degeneration is functionally linked to cellular hyperexcitability in a mouse model of Alzheimer's disease. *Neuron*.
+- Kabaso D, Coskren PJ, Henry BI, Hof PR, Wearne SL (2009) The electrotonic structure of pyramidal neurons contributing to prefrontal cortical circuits in macaque monkeys is significantly altered in aging. *Cereb Cortex*.
+- Coskren PJ et al. (2015) Functional consequences of age-related morphologic changes to pyramidal neurons of the rhesus monkey prefrontal cortex. *J Comput Neurosci*.
+- Tejada J, Arisi GM, Garcia-Cairasco N, Roque AC (2012) Morphological alterations in newly born dentate gyrus granule cells that emerge after status epilepticus contribute to make them less excitable. *PLoS ONE*.
+- Tejada J, Garcia-Cairasco N, Roque AC (2014) Combined role of seizure-induced dendritic morphology alterations and spine loss in newborn granule cells with mossy fiber sprouting on the hyperexcitability of a computer model of the dentate gyrus. *PLoS Comput Biol*.
+- IntHout J, Ioannidis JPA, Borm GF (2014) The Hartung-Knapp-Sidik-Jonkman method for random effects meta-analysis is straightforward and considerably outperforms the standard DerSimonian-Laird method. *BMC Med Res Methodol*.
+- Rall W (1959) Branching dendritic trees and motoneuron membrane resistivity. *Exp Neurol* (passive cable basis for `passive.py`).
+
 ## Ethics / data-use notes
 
 - NeuroMorpho.org data are open; cite NeuroMorpho.org and every depositing publication (`reference_pmid`/`reference_doi`) as required by its terms of use.

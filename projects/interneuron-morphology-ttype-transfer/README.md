@@ -92,6 +92,62 @@ No credentialed data are involved.
 - [ ] Optional learned embedding; representation ranking comparison (H5).
 - [ ] Preprint, code, feature tables released.
 
+## Quick start
+
+```bash
+cd projects/interneuron-morphology-ttype-transfer
+pip install -r requirements.txt
+python scripts/download_data.py                  # prints the portal links; --allen / --mini-atlas / --build-table
+PYTHONPATH=src pytest -q                         # synthetic morphologies: features, taxonomy, transfer, CORAL
+```
+
+Transfer experiment once `data/cells.parquet` and the SWC files exist:
+
+```python
+import pandas as pd
+from morph_ttype.swc import read_swc
+from morph_ttype.features import feature_table, drop_position
+from morph_ttype.transfer import within_dataset_cv, transfer, leave_dataset_out, permutation_null
+
+cells = pd.read_parquet("data/cells.parquet").query("has_swc and subclass_harmonised != 'other'")
+X = feature_table((read_swc(p) for p in cells.swc_path), cells.cell_id, normalise=True)
+y = cells.set_index("cell_id").subclass_harmonised
+d = cells.set_index("cell_id").dataset
+m, h = d == "allen_v1", d == "allen_mtg"
+print(within_dataset_cv(X[m], y[m]))                                   # H1 mouse ceiling
+print(transfer(X[m], y[m], X[h], y[h], align="coral"))                  # H2 mouse -> human
+print(transfer(drop_position(X[m]), y[m], drop_position(X[h]), y[h], align="coral"))  # H3 shape only
+print(leave_dataset_out(X, y, d))                                       # H4 lab vs. species
+```
+
+## Pre-registered analysis table
+
+| # | Unit of analysis | Primary outcome | Estimand / test | Decision rule | Confirmatory / exploratory |
+|---|---|---|---|---|---|
+| H1 | cell, within dataset | balanced accuracy (5 subclasses) | stratified 5-fold CV; label permutation null (1,000) | > 0.6 mouse V1, > 0.5 human MTG; p < 0.001 | confirmatory |
+| H2 | cell, mouse -> human | balanced accuracy | paired bootstrap over test cells; gap = within-human - transfer | gap >= 0.15; CORAL recovers >= 50% of gap | confirmatory |
+| H3 | cell | accuracy with/without position features; absolute vs. normalised | ablation, bootstrap CIs | within-species drop < 0.1; transfer gap changes by > 0.05 | confirmatory |
+| H4 | dataset held out | balanced accuracy, mouse V1 <-> mouse M1 vs. mouse -> human | leave-dataset-out | mouse-mouse loss < mouse-human loss (CI non-overlapping) | confirmatory |
+| H5 | representation (5 types) | rank of representations within vs. across species | Kendall's tau | tau < 0.5 | confirmatory |
+| S1 | cell | fine t-type accuracy given subclass | hierarchical classifier | descriptive | exploratory |
+
+Representations fixed in advance: (a) morphometrics, (b) 20x20 depth-normalised density maps, (c) persistence summaries, (d) scale-normalised (a)-(c), (e) GraphDINO-style embedding (optional). Position-only baseline: soma depth + layer.
+
+## Key references
+
+- Gouwens NW et al. (2020) Integrated morphoelectric and transcriptomic classification of cortical GABAergic cells. *Cell*.
+- Scala F et al. (2021) Phenotypic variation of transcriptomic cell types in mouse motor cortex. *Nature*.
+- Bakken TE et al. (2021) Comparative cellular analysis of motor cortex in human, marmoset and mouse. *Nature*.
+- Hodge RD et al. (2019) Conserved cell types with divergent features in human versus mouse cortex. *Nature*.
+- Lee BR et al. (2023) Signature morphoelectric properties of diverse GABAergic interneurons in the human neocortex. *Science*.
+- Chartrand T et al. (2023) Morphoelectric and transcriptomic divergence of the layer 1 interneuron repertoire in human versus mouse neocortex. *Science*.
+- Laturnus S, Kobak D, Berens P (2020) A systematic evaluation of interneuron morphology representations for cell type discrimination. *Neuroinformatics*.
+- Laturnus S, Berens P (2021) MorphVAE: generating neural morphologies from 3D-walks using a variational autoencoder with spherical latent space. *ICML*.
+- Weis MA, Pede L, Luddecke T, Ecker AS (2021) Self-supervised graph representation learning for neuronal morphologies. *arXiv* (GraphDINO).
+- Weis MA et al. (2025) An unsupervised map of excitatory neuron dendritic morphology in the mouse visual cortex. *Nat Commun*.
+- Sun B, Feng J, Saenko K (2016) Return of frustratingly easy domain adaptation. *AAAI* (CORAL).
+- "Mouse to human cross-species transfer learning for electrophysiology-to-transcriptomics mapping of cortical GABAergic interneurons" (2026) *Neuroinformatics* (the electrophysiology counterpart of this project).
+
 ## Ethics / data-use notes
 
 - Allen Institute data are released under the Allen Institute terms of use (citation required); human Patch-seq tissue is de-identified neurosurgical material collected under the original IRB approvals; no identifiable information is handled.

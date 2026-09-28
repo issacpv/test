@@ -182,7 +182,7 @@ class DeviceClient:
         frames = []
         for y in range(int(start[:4]), int(end[:4]) + 1):
             ys, ye = max(f"{y}-01-01", start), min(f"{y}-12-31", end)
-            clause = f"{search}+AND+{self.date_range(date_field, ys, ye)}" if search else self.date_range(date_field, ys, ye)
+            clause = f"{search} AND {self.date_range(date_field, ys, ye)}" if search else self.date_range(date_field, ys, ye)
             df = self.count(MAUDE, clause, date_field, exact=False)
             if not df.empty:
                 frames.append(df)

@@ -1,0 +1,15 @@
+data/
+outputs/
+*.csv.gz
+*.parquet
+*.duckdb
+*.jar
+*.pkl
+*.pt
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.venv/
+*.egg-info/

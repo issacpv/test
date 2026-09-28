@@ -1,0 +1,16 @@
+data/
+outputs/
+models/
+*.csv.gz
+*.parquet
+*.duckdb
+*.gguf
+*.safetensors
+*.bin
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.venv/
+*.egg-info/

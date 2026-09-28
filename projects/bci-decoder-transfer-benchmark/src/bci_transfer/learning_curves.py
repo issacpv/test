@@ -139,7 +139,8 @@ def auc_learning_curve(budgets: Sequence[float], acc: Sequence[float], chance: f
     k, y = k[order], y[order]
     if k[-1] == k[0]:
         return float(y.mean())
-    return float(np.trapz(y, k) / (k[-1] - k[0]))
+    trapz = getattr(np, "trapezoid", None) or np.trapz  # numpy 2 renamed trapz
+    return float(trapz(y, k) / (k[-1] - k[0]))
 
 
 def summarise_curve(df: pd.DataFrame, chance: float = 0.5, fraction: float = 0.9) -> Dict[str, float]:

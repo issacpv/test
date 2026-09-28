@@ -61,6 +61,59 @@ What is missing (our angle):
 
 Tools: `requests`, DuckDB, pandas, scikit-learn, scipy, statsmodels (optional for GEE), RxNav REST.
 
+### Outcome definitions (MIMIC-IV labevents itemids; thresholds are parameters in `outcomes.make_outcomes`)
+
+| Outcome | Labs / source | Baseline normal (within 7 d before index) | Incident event (window) |
+|---|---|---|---|
+| Hyperkalaemia | K 50971 / 50822 | K < 5.0 | K >= 5.5 mmol/L (7 d) |
+| Hyponatraemia | Na 50983 / 50824 | Na >= 135 | Na < 130 mmol/L (7 d) |
+| AKI | Creatinine 50912 | Cr < 1.5 mg/dL | KDIGO: >= 1.5x baseline or +0.3 mg/dL (7 d) |
+| Hepatocellular injury | ALT 50861, bilirubin 50885 | ALT < 2x ULN and bilirubin < 2x ULN | ALT >= 3x ULN (14 d); severe if bilirubin >= 2x ULN |
+| Thrombocytopenia | Platelets 51265 | >= 150 x10^9/L | < 100 or >= 50% drop (14 d) |
+| Neutropenia | ANC 52075 | >= 1.5 x10^9/L | < 1.0 x10^9/L (14 d) |
+| QTc prolongation | MIMIC-IV-ECG machine measurements (QT = t_end - qrs_onset, Bazett) | pre-index ECG with QTc < 500, QRS < 120 ms | QTc >= 500 ms or delta-QTc >= 60 ms (3 d) |
+
+FAERS MedDRA PT groups per outcome are in `openfda_client.OUTCOME_PT` (British spelling, e.g.
+HYPERKALAEMIA, ELECTROCARDIOGRAM QT PROLONGED, TORSADE DE POINTES).
+
+### Quickstart with the starter code
+
+```python
+import numpy as np, pandas as pd, duckdb
+from faers_ehr import openfda_client as ofc, disproportionality as dp, rxnorm, outcomes, cohort
+
+# FAERS side: 2x2 tables and signal statistics (OPENFDA_API_KEY optional)
+client = ofc.OpenFDAClient()
+tbl = client.drug_event_table(["trimethoprim", "amiodarone", "vancomycin", "haloperidol"],
+                              ["hyperkalaemia", "aki", "qt_prolongation"])
+sig = dp.signal_table(tbl)              # PRR/chi2, ROR CI, IC/IC025, EBGM/EB05 (MGPS prior fitted), signal flags
+strata = client.stratified_counts("amiodarone", "qt_prolongation", "primarysource.qualification")
+
+# EHR side: exposures, outcomes, active-comparator target trial
+con = duckdb.connect()
+rx = pd.read_csv("data/mimiciv/3.1/hosp/prescriptions.csv.gz", usecols=["ndc", "drug"])
+lookup = rxnorm.RxNavClient().map_prescriptions(rx)            # ndc/drug -> ingredient (cached)
+con.register("ingredient_lookup", lookup)
+exposures = con.execute(outcomes.exposures_sql("data/mimiciv/3.1")).df()
+labs = con.execute(outcomes.labs_sql("data/mimiciv/3.1", ("potassium",))).df()
+c = cohort.new_user_cohort(exposures, "trimethoprim", "doxycycline", washout_days=180)
+c = outcomes.incident_outcome(labs, c, outcomes.make_outcomes()["hyperkalaemia"]).query("eligible")
+ps = cohort.propensity_scores(c[covariate_cols], c["treated"])
+m = cohort.match_nearest(ps, c["treated"], caliper_sd=0.2)
+print(cohort.standardized_mean_differences(c[covariate_cols].iloc[np.r_[m.treated_idx, m.control_idx]],
+                                           np.r_[np.ones(len(m)), np.zeros(len(m))]).max())
+print(cohort.matched_risk_ratio(c["outcome"].to_numpy(), m))
+# empirical calibration with negative-control drugs, then score FAERS signals
+syserr = cohort.fit_systematic_error(nc["log_rr"], nc["se_log_rr"])
+truth = sig.apply(lambda r: cohort.classify_pair(r.rr, r.rr_lo, r.rr_hi, syserr.calibrated_p(r.log_rr, r.se_log_rr)), axis=1)
+print(dp.signal_performance(sig["ic"], truth.map({"positive": 1, "negative": 0}), sig["signal_ic"]))
+```
+
+`tests/test_faers_ehr.py` checks PRR/ROR/IC against hand-computed values, that the MGPS prior
+fitted on a simulated drug x event table shrinks small counts more than large ones, that PS
+matching removes confounding in a simulated cohort (SMD < 0.1 and RR closer to truth than the
+crude estimate), and that empirical calibration widens naive p-values.
+
 ## Evaluation & statistics
 
 - Unit of analysis: drug-outcome pair. Expected ~150-300 pairs with adequate EHR power (>= 50 exposed new users with a baseline lab).

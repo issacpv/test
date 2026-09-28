@@ -22,7 +22,7 @@ COARSE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "neurological": ("stroke", "epilep", "parkinson", "pd", "dementia", "alzheim", "ad", "mci", "ms",
                      "sclerosis", "tumor", "tumour", "glioma", "tbi", "brain injury", "aphasia", "als",
                      "huntington", "migraine", "lesion", "dystonia", "tremor"),
-    "psychiatric": ("schizo", "scz", "bipolar", "bd", "depress", "mdd", "anxiety", "ptsd", "ocd",
+    "psychiatric": ("schizo", "schz", "scz", "sz", "bipolar", "bd", "depress", "mdd", "anxiety", "ptsd", "ocd",
                     "psychosis", "psychotic", "addiction", "alcohol", "cocaine", "cannabis", "eating",
                     "anorexia", "borderline", "personality"),
     "neurodevelopmental": ("autism", "asd", "adhd", "dyslexia", "developmental", "tourette", "preterm",

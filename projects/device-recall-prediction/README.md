@@ -54,6 +54,51 @@ Acquisition steps and layout: `data/README.md`; `python scripts/download_data.py
 5. **Models.** Cox PH stratified by product code with clearance-year splines (`fit_cox`, lifelines; statsmodels fallback), Fine–Gray competing risk for Class I vs II (lifelines/`cmprsk` in R), and gradient-boosted survival (scikit-survival) as a non-linear benchmark. Baselines: DeepPredicate-style network-only model re-implemented with node2vec + logistic regression; counts-only MAUDE model; Everhart-style regulatory-covariates model.
 6. **Subgroups.** Cardiovascular (panel CV), orthopaedic (OR), insulin pumps/CGM (product codes discovered from `device/classification`, e.g. insulin infusion pumps), AI-enabled (FDA list join); interaction tests for H1/H2 by subgroup.
 
+## Concrete specifications
+
+**Device cohort.** All `device/510k` records with `decision_code` in the substantially-equivalent family (SESE, SESK, SESU, SEKD, SESD, SESP, SENA-excluded) and `decision_date` 2003-01-01 to 2020-12-31, plus original PMAs (`supplement_number` empty) in the same window; exclude product codes whose `classification.submission_type_id` marks 510(k)-exempt devices. Follow-up ends 2025-06-30.
+
+**Outcome.** First recall with `recall_class` ∈ {Class I, Class II} whose `k_numbers`/`pma_numbers` contain the submission (primary), or that matches the submission's (product code, normalised firm) family when no submission number is listed (secondary, flagged `link_type = "family"`). Time origin = clearance + landmark (6 or 12 months).
+
+| Feature block | Variables | Module |
+|---|---|---|
+| Regulatory | clearance year, `clearance_type`, `third_party_flag`, `expedited_review_flag`, `statement_or_summary`, device class, implant / life-sustaining flags, applicant's prior number of clearances | `openfda_device.flatten_510k`, `flatten_classification` |
+| Predicate chain | `predicate_depth`, `n_predicates`, `n_ancestors`, `n_recalled_ancestors`, `n_class1_ancestors`, `generations_to_recalled_ancestor`, `direct_predicate_recalled_before_clearance`, `any_ancestor_recalled_before_clearance`, `pagerank_as_predicate` | `predicate_graph.graph_features`, `ancestor_recall_exposure` |
+| MAUDE landmark | `n_reports`, `n_deaths`, `n_injuries`, `n_malfunctions`, `reports_per_month`, `n_distinct_problems`, `report_slope`, 20 TF-IDF/SVD components (optionally 384-d MiniLM embedding) | `survival_text.maude_landmark_features`, `tfidf_features` |
+| Subgroups | panel (CV, OR), insulin-pump/CGM product codes, AI-enabled list membership | `download_data.py --ai-list`, classification |
+
+**Output tables (parquet under `data/processed/`).**
+- `submissions`: one row per K/P number with regulatory covariates and first recall date/class.
+- `predicate_edges`: (k_number, predicate, kind, predicate_cue, reference_cue, n_mentions, validated).
+- `chain_features`: `graph_features` ⨝ `ancestor_recall_exposure`.
+- `maude_linked`: (mdr_report_key, k_number, link_score, link_type).
+- `landmark_12m`: survival table (`build_survival_table`) ⨝ landmark features.
+- `model_results`: hazard ratios with 95% CI per model × subgroup; C-index / time-dependent AUC per temporal split.
+
+**Quick start.**
+```bash
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                                   # optional
+python scripts/download_data.py --sample --product-codes LZG --max-maude 300
+python - <<'EOF'
+import sys; sys.path.insert(0, "src")
+import pandas as pd
+from device_recall import predicate_graph as pg, survival_text as st
+k = pd.read_csv("data/raw/openfda_sample/k510.csv", parse_dates=["decision_date"])
+k["k_number"].dropna().to_csv("data/raw/k_numbers.txt", index=False, header=False)
+EOF
+python scripts/download_data.py --summaries --k-file data/raw/k_numbers.txt   # polite, slow
+python - <<'EOF'
+import sys, glob, os; sys.path.insert(0, "src")
+from device_recall import predicate_graph as pg
+texts = {os.path.basename(p)[:-4]: pg.pdf_to_text(p) for p in glob.glob("data/raw/510k_summaries/*.pdf")}
+edges = pg.edges_from_summaries(texts)
+G = pg.build_predicate_graph(edges)
+print(pg.graph_features(pg.remove_invalid_edges(G, {})).describe())
+EOF
+pytest -q tests
+```
+
 ## Evaluation & statistics
 
 - **Temporal validation:** train on clearances 2003–2014, validate 2015–2017, test 2018–2020 with follow-up to 2025 (`temporal_split_evaluate`); no device or narrative from the test years enters TF-IDF/SVD fitting.

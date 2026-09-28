@@ -60,6 +60,52 @@ Details and directory layout: `data/README.md`. Sample pull: `python scripts/dow
 
 Libraries: pandas/pyarrow, statsmodels (GLM NB/Poisson, HAC, meta-analysis), scipy, scikit-learn (propensity-score covariate balance as a sensitivity analysis), matplotlib.
 
+## Concrete specifications
+
+**Cohort of reports.** FAERS ICSRs received 2010-01-01 to 2024-12-31, latest version per `safetyreportid`, `occurcountry == "US"` for denominator analyses (all countries for ITS), excluding reports with `primarysource.qualification` missing *and* no reporter type in the FAERS `RPSR` table. Primary drug role: suspect (`drugcharacterization == 1`); sensitivity: suspect + concomitant.
+
+**Drug universe.** Ingredients with ≥ 1 000 US reports 2010–2024 *and* present in MEPS (unweighted users ≥ 30 pooled 2018–2023) or Part D (`Tot_Benes` ≥ 1 000). Expected size: ~450 ingredients.
+
+**Event universe.** MedDRA PTs with ≥ 100 reports in the period; sex-stratified analyses additionally require a ≥ 10 in each sex.
+
+| Variable | Source field | Coding |
+|---|---|---|
+| `sex` | `patient.patientsex` | 1 male, 2 female, 0/missing unknown |
+| `age_band` | `patient.patientonsetage` + `patientonsetageunit` (801 year, 802 month, ...) | 0–17, 18–44, 45–64, 65+ |
+| `reporter` | `primarysource.qualification` | physician, pharmacist, other HCP, lawyer, consumer |
+| `serious` | `serious`, `seriousnessdeath` ... | any / death / hospitalisation |
+| `drug_norm` | `patient.drug[].openfda.generic_name` | `normalize_drug_name` (salts stripped, combinations sorted) |
+| `pt` | `patient.reaction[].reactionmeddrapt` | MedDRA PT string (version drift handled by PT name) |
+| `post_dsc` | `receivedate` vs `data/dsc_events_seed.csv` | 1 if within 0–6 months after a DSC for the same `drug_norm` |
+| `exposed_persons` | MEPS `PERWT<yy>F` sums; Part D `Tot_Benes` | per (drug_norm, year, sex[, age_band]) |
+
+**Output tables (parquet under `data/processed/`).**
+- `reports_flat`: one row per report (`records_to_frame`).
+- `pair_counts_sex`: (drug_norm, pt, sex, a, b, c, d) with within-sex margins.
+- `rates_by_sex_age`: (drug_norm, year, sex, age_band, reports, exposed_persons, rate, rate_lo, rate_hi).
+- `rrr_by_drug`: (drug_norm, year, crude_ratio, exposure_ratio, rrr, rrr_lo, rrr_hi).
+- `its_results`: one row per DSC × outcome series × reporter stratum (`ITSResult.summary()` + `p_perm`).
+- `sex_signals_adjusted`: (drug_norm, pt, ror_female, ror_male, ratio_of_ror, p_lrt, q, adjusted_ror, adjusted_ratio) from `sex_interaction_test` / `bias_adjusted_ror`.
+
+**Quick start.**
+```bash
+pip install -r requirements.txt
+export OPENFDA_API_KEY=...                      # optional
+python scripts/download_data.py --sample        # counts, monthly series, 2x2 samples
+python - <<'EOF'
+import sys; sys.path.insert(0, "src")
+import pandas as pd
+from faers_bias import its, disproportionality as dp
+m = pd.read_csv("data/raw/openfda_sample/monthly/ATORVASTATIN.csv", parse_dates=["month"])
+d = its.build_monthly_series(m, "2012-02-28", pre_months=36, post_months=24)
+print(its.fit_its(d).summary())
+t = pd.read_csv("data/raw/openfda_sample/two_by_two_sample.csv")
+row = lambda s: t[(t.drug_norm=="ATORVASTATIN") & (t.reaction_pt=="Diabetes mellitus") & (t.stratum==s)].iloc[0]
+print(dp.sex_interaction_test({"female": row("female")[["a","b","c","d"]].to_dict(), "male": row("male")[["a","b","c","d"]].to_dict()}))
+EOF
+pytest -q tests
+```
+
 ## Evaluation & statistics
 
 - **Primary estimands:** RRR (female:male reports per exposed person), DSC level-change RR and stimulation ratio (observed / counterfactual in 6 months), adjusted ROR and ratio-of-ROR (female/male).

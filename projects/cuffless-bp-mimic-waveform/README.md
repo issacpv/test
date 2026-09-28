@@ -58,6 +58,52 @@ Missing (our angle):
 5. **Splits** (`evaluation.py`): subject-level GroupKFold, plus time-blocked variants (train on the first 70% of each record, test on the last 30%) for the calibration-interval analysis, plus deliberately leaky segment-level splits for RQ5. Cross-domain: train on all MIMIC subjects, test on all VitalDB cases and vice versa.
 6. **Bolus-locked analysis**: for each bolus, take the median SBP/DBP in [-3, -0.5] min and in [+1, +5] min; compute true and predicted delta; report within-subject correlation, sign agreement for |delta| >= 10 mmHg, and a mixed-effects slope (pred delta ~ true delta + (1|subject)). Boluses with < 60 s of accepted windows on either side are excluded.
 
+### Window, feature and target definitions
+
+| Item | Definition |
+|---|---|
+| Window | 10 s, 5 s hop, 125 Hz; must contain >= 6 matched beats and pass ECG, PPG and ABP SQI with PPG/ABP heart-rate agreement within 10 bpm |
+| Reference SBP / DBP / MAP | Median over ABP beats in the window (peak, foot, beat mean) |
+| PAT_foot / PAT_slope / PAT_peak | Median R-peak to PPG intersecting-tangent onset / max-slope point / systolic peak |
+| PTT_abp_ppg | Median ABP onset to PPG onset (transit without pre-ejection period; only when the arterial line is proximal to the PPG site) |
+| Morphology | HR, HR SD, PAT SD, PPG amplitude, rise time, width at 50% |
+| Subject id | MIMIC: `subject_id` from the record name; VitalDB: `caseid`; PulseDB: `SubjectID` |
+| Bolus event | MIMIC-IV `inputevents` rows with `ordercategorydescription` in ('Drug Push', 'Bolus') or duration <= 2 min for phenylephrine / norepinephrine / epinephrine / vasopressin; pre window [-3, -0.5] min, post window [+1, +5] min, >= 3 accepted windows each |
+
+### Quickstart with the starter code
+
+```python
+import pandas as pd
+from cuffless_bp import wfdb_loader, sqi, beats, evaluation, models
+
+# stream windows from one open MIMIC-III matched record (no download)
+wins = [w for w in wfdb_loader.iter_windows("p00/p000020/p000020-2183-04-28-17-47", "mimic3wdb-matched/1.0",
+                                            max_windows=500)
+        if sqi.window_quality(w.ecg, w.ppg, w.abp, w.fs)["accept"]]
+df = beats.feature_table(wins)                       # one row per accepted window with PAT/PTT + SBP/DBP/MAP
+
+# subject-independent evaluation of the physiological baseline
+folds = evaluation.subject_independent_split(df["subject_id"], n_splits=5)
+tr, te = folds[0]
+evaluation.leakage_audit(tr, te, df["subject_id"])   # raises on any shared subject
+mk = models.MoensKortewegPTT().fit(df["pat_foot"].iloc[tr], df["sbp"].iloc[tr], df["subject_id"].iloc[tr])
+pred = mk.predict(df["pat_foot"].iloc[te])
+print(evaluation.full_report(df["sbp"].iloc[te], pred, df["subject_id"].iloc[te]))   # AAMI/ISO, IEEE 1708, BHS, BA, tracking
+floor = evaluation.trivial_baselines(df["sbp"].iloc[tr], df["subject_id"].iloc[tr], df["sbp"].iloc[te], df["subject_id"].iloc[te])
+print(evaluation.aami_iso_evaluation(df["sbp"].iloc[te], floor["population_mean"], df["subject_id"].iloc[te]))
+
+# bolus-locked change tracking (needs credentialed MIMIC-IV inputevents + MIMIC-IV WDB timestamps)
+import duckdb
+events = duckdb.connect().execute(wfdb_loader.mimiciv_bolus_sql("data/mimiciv")).df()
+tbl = evaluation.bolus_response_table(df.assign(sbp_pred=pred_all), events)
+print(evaluation.bolus_tracking_summary(tbl))
+```
+
+`tests/test_pipeline.py` builds synthetic ECG/PPG/ABP windows with a known PAT and checks that
+the detector recovers HR within 2 bpm and PAT within 40 ms (currently ~11 ms), that the SQI
+rejects flat, noisy and implausible windows, that leaky splits are caught, and that the
+Moens-Korteweg fit recovers the pressure-stiffness slope from subject-centred data.
+
 ## Evaluation & statistics
 
 - Primary: ISO 81060-2/AAMI (ME, SD of paired differences; both pooled and per-subject-averaged, >= 85 subjects with >= 3 measurements each), IEEE 1708 grade from MAD (A <= 5, B <= 6, C <= 7, D > 7 mmHg), BHS grade (cumulative % within 5/10/15 mmHg), Bland-Altman for repeated measures (Bland & Altman, 2007).

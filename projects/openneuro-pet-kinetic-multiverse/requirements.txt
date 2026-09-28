@@ -1,0 +1,17 @@
+# Core (used by src/pet_multiverse and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+statsmodels>=0.14
+pytest>=7.4
+
+# Imaging (TAC extraction from 4D NIfTI + label images)
+nibabel>=5.2
+
+# Data access (scripts/download_data.py)
+requests>=2.31
+# openneuro-py>=2024.2
+# datalad>=1.0
+# boto3>=1.34
+
+# Optional external cross-checks (not pip): kinfitr (R), PETPrep / petsurfer-bids containers

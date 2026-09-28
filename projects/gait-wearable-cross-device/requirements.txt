@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.0
+scikit-learn>=1.3
+statsmodels>=0.14
+wfdb>=4.1
+requests>=2.31
+tqdm>=4.66
+torch>=2.1
+pytest>=7.4
+# optional: kaggle>=1.6 (FoG contest data), synapseclient>=4.0 (mPower)

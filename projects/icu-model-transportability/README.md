@@ -71,6 +71,49 @@ Pipeline (each step is a script or module in `src/icu_transport/`):
 
 Tools: DuckDB, pandas/pyarrow, scikit-learn, LightGBM, YAIB (optional, for cohort cross-checks), `ricu` (R, for concept-id cross-checks).
 
+### Cohort and label definitions (shared across the four databases)
+
+| Item | Definition | Notes |
+|---|---|---|
+| Population | Adults (>= 18), first ICU stay per patient, LOS >= 6 h | AUMCdb age is banded; band `18-39` is the adult floor |
+| Prediction time | 24 h after ICU admission (12 h in sensitivity analysis) | Observation window = [0, 24) h |
+| 48-h mortality | Death in (24, 72] h after ICU admission | HiRID: last observation time for `discharge_status = 'dead'` |
+| AKI | KDIGO stage >= 1 in (24, 72] h: creatinine +0.3 mg/dL / 48 h or >= 1.5x baseline (min of previous 7 d), or urine output < 0.5 mL/kg/h for 6 h | Weight from the admission weight concept; AUMCdb weight is banded |
+| Sepsis-3 onset | Suspected infection (antibiotic + culture within 72 h / 24 h) and SOFA rise >= 2 in [-48, +24] h; onset in (24, 36] h; prevalent cases (onset <= 24 h) excluded | eICU culture timing sparse -> secondary |
+| Subgroups | Sex (all sites), age band (all), race/ethnicity (MIMIC-IV, eICU; harmonised to 5 groups) | Minimum 50 stays per subgroup for metrics |
+| Feature sets | `clinical`: mean/min/max/last of 38 concepts + missingness; `clinical+process`: adds measurement counts | RQ5 |
+
+### Quickstart with the starter code
+
+```python
+import duckdb, numpy as np, pandas as pd
+from icu_transport import cohorts, shift, calibration, fairness
+
+con = duckdb.connect()
+root = "data/raw/physionet.org/files/mimiciv/3.1"
+print(cohorts.verify_ontology(con, "mimiciv", root).query("status != 'ok'"))   # must be empty
+stays = cohorts.load_stays(con, "mimiciv", root)
+long = pd.concat([cohorts.load_concept(con, "mimiciv", c, root, max_hours=72)
+                  for c in ["hr", "map", "creatinine", "platelets", "bilirubin", "norepinephrine"]])
+grid = cohorts.hourly_grid(long, stays, n_hours=72)
+X = cohorts.window_features(grid, 0, 24, include_counts=False)
+y = cohorts.label_mortality(stays, pred_hour=24, horizon_h=48).reindex(X.index)
+
+# ... train a model on the source site, then on a target site:
+res = shift.full_decomposition(model.predict_proba_fn, X_src_holdout, y_src_holdout, X_tgt, y_tgt,
+                               metrics=("auroc", "brier", "citl"), n_boot=200)
+print({m: r.as_dict() for m, r in res.items()})          # covariate / label / concept components + CIs
+print(calibration.calibration_report(y_tgt, p_tgt))       # intercept, slope, ECE, ICI, Brier decomposition
+curve = pd.DataFrame(calibration.few_shot_learning_curve(p_tgt, y_tgt, groups=sex_tgt))
+thr = fairness.operating_threshold(p_src_holdout, alert_rate=0.10)
+print(fairness.subgroup_metrics(y_tgt, p_tgt, sex_tgt, thr))
+```
+
+The synthetic tests (`tests/test_shift_calibration.py`) show the expected behaviour of every
+function: BBSE recovers an induced prior change, the domain classifier stays at AUROC ~0.5 for
+two halves of one site, the decomposition attributes a pure label shift to the label component,
+and intercept-only recalibration removes calibration-in-the-large error but not slope error.
+
 ## Evaluation & statistics
 
 - Validation: train on site S (5-fold grouped CV by subject for tuning), evaluate on the held-out 20% of S and on 100% of each other site. Never tune on target data except in the few-shot experiment, where the recalibration sample is disjoint from the evaluation sample.

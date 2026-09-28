@@ -1,0 +1,20 @@
+# Core (used by src/cvr_norm and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro GraphQL downloads
+# awscli>=1.32          # NKI-Rockland imaging on s3://fcp-indi (public, --no-sign-request)
+
+# Imaging / physiology pipeline (production; not needed for the tests)
+nibabel>=5.2
+nilearn>=0.10
+# tedana>=23.0          # multi-echo denoising for EuskalIBUR
+# peakdet>=0.5          # physiopy physiological peak detection
+# phys2cvr>=0.5         # physiopy CVR mapping (cross-check of cvr_norm.cvr_model)
+# rapidtide>=2.9        # sLFO amplitude / CVR mode
+# pcntoolkit>=0.29      # GAMLSS/BLR normative cross-check

@@ -49,6 +49,7 @@ __all__ = [
     "disagreement_metrics",
     "consensus_mask",
     "build_nodule_table",
+    "segmentation_disagreement",
     "load_pylidc_nodules",
     "MALIGNANCY_SCALE",
     "SEMANTIC_FEATURES",

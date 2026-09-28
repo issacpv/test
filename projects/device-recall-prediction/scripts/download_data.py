@@ -62,9 +62,9 @@ log = logging.getLogger("download")
 RAW = ROOT / "data" / "raw"
 
 SAMPLE_QUERIES = {
-    "insulin_pump": 'device_name:"insulin"+AND+device_name:"pump"',
-    "hip_prosthesis": 'device_name:"hip"+AND+device_name:"prosthesis"',
-    "coronary_stent": 'device_name:"stent"+AND+device_name:"coronary"',
+    "insulin_pump": 'device_name:"insulin" AND device_name:"pump"',
+    "hip_prosthesis": 'device_name:"hip" AND device_name:"prosthesis"',
+    "coronary_stent": 'device_name:"stent" AND device_name:"coronary"',
 }
 AI_LIST_PAGE = "https://www.fda.gov/medical-devices/software-medical-device-samd/artificial-intelligence-enabled-medical-devices"
 
@@ -98,7 +98,7 @@ def run_sample(product_codes: List[str], max_maude: int, start: str, end: str) -
     codes = sorted(codes)
     log.info("sample product codes: %s", codes)
 
-    cls_all = frame(client.fetch(CLASSIFICATION, "+OR+".join(f"product_code:{c}" for c in codes), limit=100), flatten_classification)
+    cls_all = frame(client.fetch(CLASSIFICATION, " OR ".join(f"product_code:{c}" for c in codes), limit=100), flatten_classification)
     _save(cls_all, out / "classification.csv")
 
     k_frames, p_frames, r_frames, e_frames, m_frames, series = [], [], [], [], [], []
@@ -117,11 +117,11 @@ def run_sample(product_codes: List[str], max_maude: int, start: str, end: str) -
             ids = [i for i in r["res_event_number"].dropna().unique()]
             for chunk_start in range(0, len(ids), 50):
                 chunk = ids[chunk_start : chunk_start + 50]
-                clause = "+OR+".join(f"event_id:{i}" for i in chunk)
+                clause = " OR ".join(f"event_id:{i}" for i in chunk)
                 e = pd.concat([e, frame(client.fetch(ENFORCEMENT, clause, limit=1000), flatten_enforcement)], ignore_index=True)
         e_frames.append(e)
         m = frame(
-            client.iter_records(MAUDE, f"device.device_report_product_code:{code}+AND+{client.date_range('date_received', start, end)}", limit=100, max_records=max_maude),
+            client.iter_records(MAUDE, f"device.device_report_product_code:{code} AND {client.date_range('date_received', start, end)}", limit=100, max_records=max_maude),
             flatten_maude,
         )
         m_frames.append(m)

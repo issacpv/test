@@ -115,13 +115,13 @@ def run_sample(drugs: List[str], start: str, end: str) -> None:
         monthly = client.faers_monthly_series(search=q, start=start, end=end)
         _save(monthly, out / "monthly" / f"{drug}.csv")
         for sex_code, sex in (("1", "male"), ("2", "female")):
-            m = client.faers_monthly_series(search=f"{q}+AND+patient.patientsex:{sex_code}", start=start, end=end)
+            m = client.faers_monthly_series(search=f"{q} AND patient.patientsex:{sex_code}", start=start, end=end)
             _save(m, out / "monthly" / f"{drug}_{sex}.csv")
         top = client.faers_reaction_counts(drug, limit=200)
         _save(top, out / "reactions" / f"{drug}.csv")
         # sex-specific top reactions (numerators for sex-stratified 2x2)
         for sex_code, sex in (("1", "male"), ("2", "female")):
-            t = client.count("drug/event", f"{q}+AND+patient.patientsex:{sex_code}", "patient.reaction.reactionmeddrapt", limit=200)
+            t = client.count("drug/event", f"{q} AND patient.patientsex:{sex_code}", "patient.reaction.reactionmeddrapt", limit=200)
             _save(t, out / "reactions" / f"{drug}_{sex}.csv")
     _save(pd.concat(sex_rows, ignore_index=True), out / "sex_counts.csv")
     _save(pd.concat(rep_rows, ignore_index=True), out / "reporter_counts.csv")

@@ -1,0 +1,14 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+pytest>=7.4
+requests>=2.31
+tqdm>=4.66
+# readers for the real datasets (BIDS-EEG: BrainVision / EDF / EEGLAB .set)
+mne>=1.6
+mne-bids>=0.15
+openneuro-py>=2024.2
+# optional: mixed-effects models for learning trajectories
+# statsmodels>=0.14
+# optional: ICA-based artifact factor of the multiverse
+# python-picard>=0.7

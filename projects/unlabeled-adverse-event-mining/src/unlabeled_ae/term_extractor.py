@@ -203,7 +203,9 @@ class MedDRADictionary:
         # allow optional plural 's' and flexible whitespace/hyphen
         pats = []
         for a in alts:
-            p = re.escape(a).replace(r"\ ", r"[\s\-]+").replace(r"\-", r"[\s\-]+")
+            # escaped spaces / hyphens -> flexible separator (one substitution, so the
+            # inserted class is never re-processed)
+            p = re.sub(r"\\[ \-]", r"[\\s\\-]+", re.escape(a))
             if len(a) > 3 and not a.endswith("s"):
                 p += "s?"
             pats.append(p)
@@ -274,9 +276,18 @@ class MedDRADictionary:
         return self._regex.finditer(text)
 
 
+_SENTENCE_BREAK_RE = re.compile(r"[.;:!?]\s|\n")
+
+
 def _is_negated(text: str, start: int, window_chars: int = 40) -> bool:
+    """True if a negation cue precedes ``start`` within the same sentence/window."""
     ctx = text[max(0, start - window_chars) : start].lower()
-    return any(ctx.rstrip().endswith(c.strip()) or (" " + c) in (" " + ctx) for c in _NEGATION_CUES)
+    # do not look back past a sentence boundary
+    breaks = list(_SENTENCE_BREAK_RE.finditer(ctx))
+    if breaks:
+        ctx = ctx[breaks[-1].end() :]
+    padded = " " + ctx
+    return any(padded.rstrip().endswith(" " + c.strip()) or (" " + c) in padded for c in _NEGATION_CUES)
 
 
 def extract_terms(text: str, dictionary: MedDRADictionary, negation: bool = True) -> List[Mention]:

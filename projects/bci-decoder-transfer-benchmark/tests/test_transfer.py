@@ -137,9 +137,10 @@ def acc_at(p, k):
 def test_statistics_on_synthetic_results():
     assert np.allclose(holm([0.01, 0.04, 0.03]), [0.03, 0.06, 0.06])
     df = make_results_table(n_datasets=4, subjects_per_dataset=8, transfer_gain=0.08, seed=1)
-    wide = df[df["budget"] == 10].pivot_table(index=["dataset", "subject"], columns="method", values="accuracy")
+    # at budget 0 the planted transfer gain is the full 0.08 (it decays with budget in the generator)
+    wide = df[df["budget"] == 0].pivot_table(index=["dataset", "subject"], columns="method", values="accuracy")
     es = paired_effect_size(wide["ra_mdm"], wide["scratch"])
-    assert es["mean_diff"] > 0 and es["p_wilcoxon"] < 0.01 and es["d_z"] > 0.5
+    assert es["mean_diff"] > 0.04 and es["p_wilcoxon"] < 0.01 and es["d_z"] > 0.5
     ntr = negative_transfer_rate(wide["ra_mdm"], wide["scratch"])
     assert 0 <= ntr["rate"] <= 0.3 and ntr["ci_low"] <= ntr["rate"] <= ntr["ci_high"]
     res = fit_transfer_mixed_model(df)

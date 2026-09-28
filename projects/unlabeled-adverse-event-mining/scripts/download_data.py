@@ -89,7 +89,7 @@ def run_sample(drugs: List[str], start_q: str, end_q: str) -> None:
         for _, r in top.iterrows():
             pt_rows.append({"pt": r["term"], "quarter": str(q), "n": int(r["count"])})
         for d in drugs:
-            dq = f'patient.drug.openfda.generic_name:"{d}"+AND+{rng}'
+            dq = f'patient.drug.openfda.generic_name:"{d}" AND {rng}'
             nd = client.count("drug/event", dq, "receivedate")
             drug_rows.append({"drug": d, "quarter": str(q), "n": int(nd["count"].sum()) if not nd.empty else 0})
             pc = client.count("drug/event", dq, "patient.reaction.reactionmeddrapt.exact", limit=1000)

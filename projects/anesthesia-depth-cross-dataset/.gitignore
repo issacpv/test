@@ -1,0 +1,45 @@
+# data and outputs
+data/
+!data/README.md
+outputs/
+results/
+checkpoints/
+splits/*.json
+*.vital
+*.edf
+*.set
+*.fdt
+*.mat
+*.fif
+*.nii.gz
+*.nwb
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.parquet
+*.pkl
+*.pt
+*.pth
+*.zip
+*.tar
+*.tar.gz
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# environments / secrets
+.env
+.venv/
+venv/
+env/
+*.log
+.DS_Store

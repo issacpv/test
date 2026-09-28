@@ -1,0 +1,13 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+wfdb>=4.1
+requests>=2.31
+pytest>=7.4
+# VitalDB python API (numeric + waveform tracks); the REST fallback in references.py needs only requests
+vitaldb>=1.4
+# optional: DICOM structured-report parsing for MIMIC-IV-Echo measurements
+# pydicom>=2.4
+# optional: DuckDB for MIMIC chartevents / noteevents extraction
+# duckdb>=0.10

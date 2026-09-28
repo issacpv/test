@@ -262,9 +262,9 @@ class OpenFDAClient:
         clause = f"patient.drug.openfda.generic_name:{self.quote(generic_name.upper())}"
         if roles:
             role_clause = "+".join(f"patient.drug.drugcharacterization:{r}" for r in roles)
-            clause = f"{clause}+AND+({role_clause})" if len(roles) == 1 else f"{clause}+AND+({role_clause.replace('+', '+OR+')})"
+            clause = f"{clause} AND ({role_clause})" if len(roles) == 1 else f"{clause} AND ({role_clause.replace('+', ' OR ')})"
         if extra:
-            clause = f"{clause}+AND+{extra}"
+            clause = f"{clause} AND {extra}"
         return clause
 
     def faers_sex_counts(self, generic_name: str, search_extra: Optional[str] = None) -> pd.DataFrame:
@@ -301,7 +301,7 @@ class OpenFDAClient:
         for y in years:
             ys = max(f"{y}-01-01", start)
             ye = min(f"{y}-12-31", end)
-            clause = f"{search}+AND+{self.date_range(ys, ye, date_field)}" if search else self.date_range(ys, ye, date_field)
+            clause = f"{search} AND {self.date_range(ys, ye, date_field)}" if search else self.date_range(ys, ye, date_field)
             df = self.count("drug/event", clause, date_field, exact=False)
             if not df.empty:
                 frames.append(df)
@@ -340,12 +340,12 @@ class OpenFDAClient:
 
         def total(clause: Optional[str]) -> int:
             parts = [p for p in (clause, base) if p]
-            s = "+AND+".join(parts) if parts else None
+            s = " AND ".join(parts) if parts else None
             df = self.count("drug/event", s, "receivedate", exact=False)
             return int(df["count"].sum()) if not df.empty else 0
 
         n_drug = total(drug)
-        a = total(f"{drug}+AND+{rxn}")
+        a = total(f"{drug} AND {rxn}")
         n_rxn = total(rxn)
         n_all = total(None)
         b = n_drug - a

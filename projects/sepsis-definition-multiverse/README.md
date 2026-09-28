@@ -7,7 +7,7 @@
 - Status: design + starter code (SOFA component scoring with configurable missingness handling, suspected-infection pairing rules, a specification grid with cohort/onset/Jaccard summaries, main-effects variance decomposition, and a definition-transfer benchmark). No data is shipped.
 - Difficulty: MSc-level (cohort multiverse) to PhD-level (downstream causal and RL re-analyses). Mostly SQL/pandas engineering and careful statistics.
 - Timeline: 6-9 months (1 month credentialing + extraction, 2 months implementing and validating the grid against mimic-code and ricu, 2 months benchmarks and treatment-effect analyses, 1-2 months writing).
-- Compute: workstation with >= 64 GB RAM and DuckDB over MIMIC-IV/eICU CSV/parquet; the full grid (~300 specifications x 2 databases) is embarrassingly parallel and CPU-only; the early-warning models are gradient-boosted trees (a GRU baseline is optional).
+- Compute: workstation with >= 64 GB RAM and DuckDB over MIMIC-IV/eICU CSV/parquet; the full grid (288 specifications x 2 databases) is embarrassingly parallel and CPU-only; the early-warning models are gradient-boosted trees (a GRU baseline is optional).
 
 ## Background
 
@@ -28,7 +28,7 @@ What has been done (2023-2026):
 
 What is specifically missing (our angle):
 
-1. A **full factorial grid** (about 300 specifications) over the decision dimensions, run identically on MIMIC-IV v3.1 and eICU-CRD v2.0, with each dimension traceable to a published implementation (mimic-code, ricu, YAIB, AI Clinician, Seymour 2016), and validated by reproducing those implementations exactly as grid points.
+1. A **full factorial grid** (288 fully crossed specifications plus non-crossed sensitivity variants) over the decision dimensions, run identically on MIMIC-IV v3.1 and eICU-CRD v2.0, with each dimension traceable to a published implementation (mimic-code, ricu, YAIB, AI Clinician, Seymour 2016), and validated by reproducing those implementations exactly as grid points.
 2. **Cohort geometry**: pairwise Jaccard overlap of sepsis cohorts, onset-time shifts (median and IQR of the difference in t = 0 between specifications), and the fraction of patients whose onset moves across the "before ICU admission" boundary (which silently changes the prediction task).
 3. **Variance decomposition**: main-effects and interaction eta^2 of each decision dimension on cohort size, mortality, and downstream metrics; the answer to "which decisions matter?" has not been published.
 4. **Downstream consequences**: early-warning AUROC/AUPRC/calibration at fixed horizons under every specification; model *rankings* (LR vs GBM vs GRU) across specifications; a **definition-transfer matrix** (train under definition A, evaluate under B); time-to-antibiotics effect estimates; the value of a fixed treatment policy under the AI-Clinician cohort vs alternatives.
@@ -80,7 +80,7 @@ Tools: DuckDB, pandas/pyarrow, scikit-learn, LightGBM (optional), statsmodels, r
 
 ## Publishable angle
 
-Headline: "Across ~300 Sepsis-3 operationalisations, cohort size varies N-fold and early-warning AUROC varies more across definitions than across models; three decisions (culture requirement, SOFA baseline, onset convention) explain most of the variance, and treatment-effect estimates flip with the onset convention." Deliverables: the grid, the eta^2 table, a recommended core set, and code that emits labels for all core-set definitions from a MIMIC-IV/eICU DuckDB.
+Headline: "Across 288 Sepsis-3 operationalisations, cohort size varies N-fold and early-warning AUROC varies more across definitions than across models; three decisions (culture requirement, SOFA baseline, onset convention) explain most of the variance, and treatment-effect estimates flip with the onset convention." Deliverables: the grid, the eta^2 table, a recommended core set, and code that emits labels for all core-set definitions from a MIMIC-IV/eICU DuckDB.
 
 Target venues: Critical Care Medicine or Intensive Care Medicine (clinical audience); JAMIA or npj Digital Medicine (informatics); ML4H / CHIL proceedings for the benchmark-ranking result.
 

@@ -35,8 +35,8 @@ def test_features_on_known_tree():
     assert f["dend_frac_above_soma"] == 0.0  # all dendrite is at positive y (deeper)
     dm = density_map(n, (BASAL,), bins=4)
     assert sum(dm.values()) == pytest.approx(1.0)
-    ps = persistence_summary(n, (BASAL,), n_bins=4, max_r=100)
-    assert ps["pers_dend_n_sections"] == 3
+    ps = persistence_summary(n, (BASAL,), n_bins=4, max_r=100, prefix="pers_dend")
+    assert ps["pers_dend_n_sections"] == 3  # stem section + two daughter sections
     full = featurize(n, soma_depth_norm=0.3, layer_index=2, cortical_thickness_um=1000.0)
     assert full["has_axon"] == 1.0 and "axon_total_length" in full
     assert "soma_depth_norm" not in drop_position(pd.DataFrame([full])).columns

@@ -59,7 +59,9 @@ LOINC_SECTIONS = {
 _LINK_NEXT_RE = re.compile(r'<([^>]+)>\s*;\s*rel="next"')
 _SECTION_NUM_RE = re.compile(r"(?m)^\s*\d{1,2}(?:\.\d{1,2})?\s+(?=[A-Z])")
 _WS_RE = re.compile(r"\s+")
-_SUBSECTION_RE = re.compile(r"(?:(?<=\s)|^)(\d{1,2}\.\d{1,2})\s+([A-Z][A-Za-z ,/&\-]{3,80}?)(?=\s{1,}[A-Z0-9(\[])")
+_SUBSECTION_START_RE = re.compile(r"(?:(?<=\s)|^)(\d{1,2}\.\d{1,2})\s+(?=[A-Z])")
+_TOKEN_RE = re.compile(r"\S+")
+_TITLE_CONNECTORS = {"and", "or", "of", "in", "the", "to", "with", "for", "a", "an", "on", "by", "&", "/"}
 _POSTMARKETING_RE = re.compile(r"post[- ]?marketing experience", re.IGNORECASE)
 
 
@@ -113,7 +115,7 @@ def split_subsections(text: str) -> Dict[str, str]:
     """
     if not text:
         return {}
-    matches = list(_SUBSECTION_RE.finditer(text))
+    matches = list(_SUBSECTION_START_RE.finditer(text))
     if not matches:
         return {"": text}
     out: Dict[str, str] = {}
@@ -121,9 +123,57 @@ def split_subsections(text: str) -> Dict[str, str]:
         out[""] = text[: matches[0].start()].strip()
     for i, m in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        title = f"{m.group(1)} {m.group(2).strip()}"
-        out[title] = text[m.end() : end].strip()
+        chunk = text[m.end() : end]
+        title_words, body_start = _title_span(chunk)
+        title = f"{m.group(1)} {' '.join(title_words)}".strip()
+        out[title] = chunk[body_start:].strip()
     return out
+
+
+def _title_span(chunk: str, max_words: int = 12):
+    """Heuristic Title-Case run after a subsection number.
+
+    Consumes capitalised tokens (plus connector words). If the run ends because
+    the next token is lower-case, the sentence-initial word of the body is
+    returned to the body: "6.2 Postmarketing Experience The following ..."
+    -> title "Postmarketing Experience"; "5.1 Myopathy and Rhabdomyolysis Cases
+    of myopathy ..." -> title "Myopathy and Rhabdomyolysis".
+    """
+    toks = list(_TOKEN_RE.finditer(chunk))
+    run = []  # (word, end_offset)
+    ended_by_lower = False
+    for t in toks:
+        w = t.group(0)
+        core = w.strip(",;:()")
+        if not core:
+            break
+        if core[0].isupper() or core.lower() in _TITLE_CONNECTORS:
+            run.append((w, t.end()))
+            if len(run) >= max_words:
+                break
+        else:
+            ended_by_lower = True
+            break
+
+    def _is_lower_connector(item) -> bool:
+        c = item[0].strip(",;:()")
+        return c.lower() in _TITLE_CONNECTORS and not c[0].isupper()
+
+    if ended_by_lower and len(run) > 1:
+        if _is_lower_connector(run[-1]):
+            # "... Cases of | myopathy": drop the connector, then the sentence-initial word
+            run.pop()
+            if len(run) > 1:
+                run.pop()
+        else:
+            # "... Experience The | following": the capitalised word starts the body
+            run.pop()
+    while run and _is_lower_connector(run[-1]):
+        run.pop()
+    if not run:
+        return [], 0
+    words = [w.rstrip(",;:") for w, _ in run]
+    return words, run[-1][1]
 
 
 def parse_label(rec: Dict[str, Any]) -> LabelDoc:
@@ -268,7 +318,7 @@ class LabelClient:
         """All current SPLs whose ``openfda.generic_name`` matches (one per set id)."""
         q = f'openfda.generic_name:"{generic_name.upper()}"'
         if rx_only:
-            q += '+AND+openfda.product_type:"HUMAN PRESCRIPTION DRUG"'
+            q += ' AND openfda.product_type:"HUMAN PRESCRIPTION DRUG"'
         docs = [parse_label(r) for r in self.iter_records("drug/label", q, limit=100, max_records=max_records)]
         # de-duplicate by set id keeping highest version
         best: Dict[str, LabelDoc] = {}

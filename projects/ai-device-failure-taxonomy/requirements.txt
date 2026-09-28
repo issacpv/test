@@ -1,0 +1,14 @@
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+duckdb>=0.10
+pyarrow>=14
+openpyxl>=3.1
+matplotlib>=3.8
+tqdm>=4.66
+pytest>=7.4
+# optional: rapidfuzz>=3.5 (faster/better string similarity; difflib fallback is used otherwise)
+# optional: sentence-transformers>=2.7 (local embeddings for the narrative classifier)

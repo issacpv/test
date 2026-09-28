@@ -1,0 +1,16 @@
+# Core (used by src/dmri_charts and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro GraphQL + anonymous S3 listing; IXI HTTP
+boto3>=1.34             # HCP S3 bucket (keys issued by ConnectomeDB)
+
+# Production diffusion fitting (optional; not needed for the tests)
+# dipy>=1.9             # DTI/DKI reference fits, gradient tables, tract utilities
+# dmri-amico>=2.0       # NODDI (AMICO)
+# nibabel>=5.2
+# pcntoolkit>=0.30      # HBR normative models (alternative to the built-in location-scale model)

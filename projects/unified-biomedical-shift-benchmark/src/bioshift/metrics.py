@@ -65,7 +65,7 @@ def calibration_intercept_slope(y: np.ndarray, s: np.ndarray, w: Optional[np.nda
     def newton(design: np.ndarray, offset: np.ndarray) -> np.ndarray:
         beta = np.zeros(design.shape[1])
         for _ in range(n_iter):
-            eta = offset + design @ beta
+            eta = np.clip(offset + design @ beta, -30, 30)
             p = 1 / (1 + np.exp(-eta))
             g = design.T @ (w * (y - p))
             H = (design * (w * p * (1 - p))[:, None]).T @ design + 1e-8 * np.eye(design.shape[1])

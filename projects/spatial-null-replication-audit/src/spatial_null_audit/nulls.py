@@ -77,7 +77,9 @@ def sphere_distance(coords: np.ndarray) -> np.ndarray:
     """Great-circle distance matrix (radians) between unit-sphere points."""
     c = np.asarray(coords, dtype=float)
     dots = np.clip(c @ c.T, -1.0, 1.0)
-    return np.arccos(dots)
+    d = np.arccos(dots)
+    np.fill_diagonal(d, 0.0)  # self-distance is exactly zero (arccos(1 - eps) is not)
+    return d
 
 
 def gaussian_random_field(dist: np.ndarray, length_scale: float, rng: Optional[np.random.Generator] = None, n_maps: int = 1, jitter: float = 1e-8) -> np.ndarray:

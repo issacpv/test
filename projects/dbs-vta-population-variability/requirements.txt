@@ -1,0 +1,18 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# optional: FEM field volumes exported from Lead-DBS / OSS-DBS
+# nibabel>=5.0
+# optional: Allen Cell Types human reconstructions
+# allensdk>=2.16
+# optional: MRG axon calibration
+# neuron>=8.2
+# optional: Sobol indices with SALib instead of the built-in ANOVA decomposition
+# SALib>=1.4

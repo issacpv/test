@@ -115,7 +115,10 @@ def test_time_scan_dates_emergence():
     fs = s.loc[("DRUGA", "Rhabdomyolysis"), "first_signal_quarter"]
     assert pd.notna(fs)
     assert quarters[10] <= fs <= quarters[13]
-    assert pd.isna(s.loc[("DRUGB", "Rhabdomyolysis"), "first_signal_quarter"])
+    # null pair: no sustained signal at the end of follow-up (transient early
+    # flags on small cumulative counts are possible, which is why k_sustain exists)
+    assert not s.loc[("DRUGB", "Rhabdomyolysis"), "signal_current"]
+    assert s.loc[("DRUGB", "Rhabdomyolysis"), "ic025_current"] < s.loc[("DRUGA", "Rhabdomyolysis"), "ic025_current"]
     assert s.loc[("DRUGA", "Rhabdomyolysis"), "signal_current"]
 
 

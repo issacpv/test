@@ -1,0 +1,16 @@
+# Core (used by src/layerfmri_repro and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro GraphQL (scripts/download_data.py)
+
+# Imaging pipeline (production; not needed for the tests)
+nibabel>=5.2
+nilearn>=0.10
+# antspyx>=0.4          # sub-mm motion correction / registration
+# LayNii is a C++ toolbox: https://github.com/layerfMRI/LAYNII (LN2_LAYERS for equivolume layering)

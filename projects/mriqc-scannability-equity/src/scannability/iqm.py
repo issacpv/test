@@ -71,7 +71,7 @@ def literature_rulesets() -> dict[str, RuleSet]:
 
 def fd_threshold_sweep(thresholds=(0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1.0)) -> list[RuleSet]:
     """One rule set per mean-FD threshold, for exclusion-elasticity analyses."""
-    return [RuleSet(f"fd_mean_gt_{t}", [Rule("fd_mean", "gt", float(t))]) for t in thresholds]
+    return [RuleSet(f"fd_mean_gt_{str(t).replace('.', 'p')}", [Rule("fd_mean", "gt", float(t))]) for t in thresholds]
 
 
 _BIDS_RE = re.compile(r"(sub-[A-Za-z0-9]+)(?:_ses-([A-Za-z0-9]+))?")

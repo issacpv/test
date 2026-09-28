@@ -1,0 +1,14 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+matplotlib>=3.8
+tqdm>=4.66
+pytest>=7.4
+# VitalDB access (REST API is used by the scripts; the package is optional but convenient)
+vitaldb>=1.4
+# Cambridge set is distributed as EEGLAB/MATLAB files
+mne>=1.6
+# optional CNN
+# torch>=2.1

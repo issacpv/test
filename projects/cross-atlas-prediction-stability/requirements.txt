@@ -1,0 +1,16 @@
+# Core (used by src/atlas_stability and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro anonymous S3 listing / downloads
+nilearn>=0.10           # atlas fetchers (Schaefer, AAL, Craddock, DiFuMo, Harvard-Oxford, Yeo)
+boto3>=1.34             # HCP S3 bucket (keys from ConnectomeDB)
+
+# Optional (production)
+# nibabel>=5.2          # CIFTI / GIFTI
+# neuromaps>=0.0.5      # spin nulls
+# openneuro-py>=2024.2  # alternative OpenNeuro downloader

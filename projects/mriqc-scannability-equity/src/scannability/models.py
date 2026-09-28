@@ -31,7 +31,7 @@ def fit_exclusion_glm(df: pd.DataFrame, outcome: str, age_df: int = 4, dataset_e
     rhs = f"bs(age, df={age_df}) + sex + group"
     if dataset_effects and d["dataset"].nunique() > 1:
         rhs += " + C(dataset)"
-    model = smf.glm(f"{outcome} ~ {rhs}", data=d, family=sm.families.Binomial())
+    model = smf.glm(f"Q('{outcome}') ~ {rhs}", data=d, family=sm.families.Binomial())
     groups = pd.factorize(d["dataset"])[0]
     return model.fit(cov_type="cluster", cov_kwds={"groups": groups})
 
@@ -41,7 +41,7 @@ def fit_mixed(df: pd.DataFrame, outcome: str, age_df: int = 4):
     from statsmodels.genmod.bayes_mixed_glm import BinomialBayesMixedGLM
 
     d = _prepare(df, outcome)
-    model = BinomialBayesMixedGLM.from_formula(f"{outcome} ~ bs(age, df={age_df}) + sex + group",
+    model = BinomialBayesMixedGLM.from_formula(f"Q('{outcome}') ~ bs(age, df={age_df}) + sex + group",
                                                {"dataset": "0 + C(dataset)"}, d)
     return model.fit_vb()
 

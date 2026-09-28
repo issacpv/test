@@ -1,0 +1,17 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+nibabel>=5.1
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# data access
+# allensdk>=2.16
+# openneuro-py>=2023.1
+# dandi>=0.60
+# datalad>=0.19
+# optional whole-brain simulator with BOLD forward model
+# tvb-library>=2.8
