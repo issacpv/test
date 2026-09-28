@@ -286,8 +286,15 @@ def build_trajectories(wide: pd.DataFrame, outcomes: pd.DataFrame, features: Seq
 def impute_and_scale(traj: Trajectories, medians: Optional[np.ndarray] = None,
                      scale: Optional[Tuple[np.ndarray, np.ndarray]] = None) -> Tuple[Trajectories, np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """Median-impute NaNs and z-score using training statistics (fit on `traj` if not given)."""
+    import warnings
+
     X = traj.obs.copy()
-    med = np.nanmedian(X, axis=0) if medians is None else medians
+    if medians is None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns (feature absent at this site) -> 0
+            med = np.nanmedian(X, axis=0)
+    else:
+        med = medians
     med = np.where(np.isnan(med), 0.0, med)
     X = np.where(np.isnan(X), med, X)
     nX = np.where(np.isnan(traj.next_obs), med, traj.next_obs)

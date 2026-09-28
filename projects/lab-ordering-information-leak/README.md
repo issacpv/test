@@ -64,6 +64,42 @@ Pipeline (each step maps to a module in `src/lab_leak/`):
 
 Tools: DuckDB, pandas/pyarrow, scikit-learn; optional PyTorch for neural baselines; YAIB for cohort cross-checks.
 
+### Feature dictionary (per lab item, 24-h window ending at prediction time)
+
+| Table | Column | Definition | Channel |
+|---|---|---|---|
+| values | `<item>_last`, `_mean`, `_min`, `_max` | statistics of resulted values (NaN if none) | value |
+| masks | `<item>_n` | number of measurements | ordering |
+| masks | `<item>_any` | 1 if measured at least once | ordering |
+| masks | `<item>_hrs_since` | hours from last measurement to prediction time (window length if none) | ordering (timing) |
+| masks | `<item>_n_stat` | number of STAT-priority measurements (MIMIC-IV only) | ordering (suspicion) |
+| masks | `<item>_n_off` | number of off-schedule measurements (outside morning window or STAT) | ordering (suspicion) |
+| masks | `n_total`, `n_stat_total`, `n_off_total`, `n_distinct` | stay-level totals | ordering |
+| pending | `<item>_pending` | ordered/collected but `storetime` after prediction time | ordering (planned) |
+
+### Quick start
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests                       # synthetic-data tests
+python scripts/download_data.py --simulate --out data/synthetic  # semi-synthetic cohorts (open)
+```
+
+```python
+from lab_leak import simulate, ordering, attribution
+long, stays = simulate.simulate_cohort(simulate.SimConfig(n_stays=2000, gamma=1.5))
+cfg = ordering.FeatureConfig(window_hours=24, morning_window=(4, 8))
+V, M = ordering.build_features(long, stays, cfg)
+y = stays["y"].to_numpy(); tr = stays.index < 1400
+att = attribution.two_player_shapley(V[tr], M[tr], y[tr], V[~tr], M[~tr], y[~tr], kind="gbt")
+print(att.mask_share, att.auroc_values_only, att.auroc_masks_only, att.auroc_both)
+robust = attribution.fit_order_dropout(long[long.stay_id < 1400], stays[tr], y[tr],
+                                       lambda l, s: ordering.build_features(l, s, cfg))
+```
+
+On real data, replace the simulator with `sql.run_query(sql.mimic_labs_sql(root, sql.MIMIC_LAB_ITEMS.values()))`
+and `sql.mimic_stays_sql(root)`; the rest of the pipeline is unchanged.
+
 ## Evaluation & statistics
 
 - Validation: subject-level splits; hospital-grouped CV inside eICU; 5x2 CV for attribution; never tune on target hospitals/eras.

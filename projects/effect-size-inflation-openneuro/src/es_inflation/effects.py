@@ -184,8 +184,12 @@ class PeakInflation:
 
     @property
     def ratio(self) -> float:
-        """Circular / cross-validated effect (inf when the CV estimate is ~0)."""
-        return float(self.d_circular / self.d_cv) if abs(self.d_cv) > 1e-12 else float("inf")
+        """Circular / cross-validated effect.
+
+        Returns ``inf`` when the held-out effect is zero or negative (no replicable effect, so the
+        inflation is unbounded); callers should report ``d_cv`` alongside the ratio.
+        """
+        return float(self.d_circular / self.d_cv) if self.d_cv > 1e-12 else float("inf")
 
 
 def circular_peak_effect(betas: np.ndarray) -> tuple[float, int]:

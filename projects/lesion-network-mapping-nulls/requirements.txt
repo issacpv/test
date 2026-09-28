@@ -1,0 +1,18 @@
+# Core (used by src/lnm_nulls and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro GraphQL downloads (scripts/download_data.py)
+# awscli>=1.32          # HCP-YA (s3://hcp-openaccess) and fcp-indi buckets
+
+# Imaging pipeline (production runs; not needed for the tests)
+nibabel>=5.2
+nilearn>=0.10
+# antspyx>=0.4          # lesion-to-MNI registration with cost-function masking
+# brainsmash>=0.11      # variogram-matched surrogate maps (cross-check of Moran surrogates)
+# neuromaps>=0.0.5      # spin tests

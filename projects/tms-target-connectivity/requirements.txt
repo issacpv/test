@@ -1,0 +1,31 @@
+# Core numerics and stats (what the code in src/ actually imports)
+numpy>=1.26,<3
+scipy>=1.11,<2
+pandas>=2.1,<3
+requests>=2.31,<3
+
+# Neuroimaging I/O
+nibabel>=5.1,<6        # CIFTI dense connectomes, NIfTI E-field volumes
+meshio>=5.3,<6         # SimNIBS Gmsh .msh E-field meshes
+
+# Testing
+pytest>=7.4,<9
+
+# --- Optional -----------------------------------------------------------------
+# Dataset acquisition (either one works; scripts/download_data.py tries both)
+# openneuro-py>=2024.2
+# datalad>=0.19
+#
+# Reference implementations of the spatial nulls. Prefer these for a published
+# analysis; tms_target.nulls provides dependency-free equivalents.
+# brainsmash>=0.11          # variogram-matched surrogates (Burt et al. 2020)
+# neuromaps>=0.0.5          # spin tests, parcellations, map fetching
+# netneurotools>=0.2.3      # alternative spin-test implementations
+#
+# E-field modelling. SimNIBS is normally installed via its platform installer
+# rather than pip; ROAST is MATLAB/Octave.
+# simnibs>=4.1
+#
+# HCP S3 access
+# boto3>=1.34
+# awscli>=1.32

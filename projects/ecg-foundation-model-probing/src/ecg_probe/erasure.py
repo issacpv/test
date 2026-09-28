@@ -56,17 +56,22 @@ def leace_fit(Z: np.ndarray, y: np.ndarray):
 
 def inlp_fit(Z: np.ndarray, y: np.ndarray, n_iter: int = 10, seed: int = 0):
     """Iterative Null-space Projection: repeatedly null the direction a linear
-    classifier uses to predict y. Comparator to LEACE."""
+    classifier uses to predict y. Comparator to LEACE.
+
+    All work is done in a single standardized coordinate frame so that the
+    directions nulled by ``P`` match the directions the classifiers use.
+    """
     Z = np.asarray(Z, float)
-    d = Z.shape[1]
+    mu = Z.mean(0)
+    sd = Z.std(0) + 1e-8
+    Zs = (Z - mu) / sd            # standardized once, kept fixed
+    d = Zs.shape[1]
     P = np.eye(d)
-    Zc = Z - Z.mean(0)
-    rng = np.random.default_rng(seed)
     for _ in range(n_iter):
-        Zp = Zc @ P
+        Zp = Zs @ P
         clf = LogisticRegression(max_iter=500)
         try:
-            clf.fit(StandardScaler().fit_transform(Zp), y)
+            clf.fit(Zp, y)
         except Exception:  # pragma: no cover
             break
         w = clf.coef_.reshape(-1)
@@ -75,10 +80,10 @@ def inlp_fit(Z: np.ndarray, y: np.ndarray, n_iter: int = 10, seed: int = 0):
             break
         w = w / nrm
         P = P @ (np.eye(d) - np.outer(w, w))
-    mu = Z.mean(0)
 
     def erase(Z_new: np.ndarray) -> np.ndarray:
-        return mu + (np.asarray(Z_new, float) - mu) @ P
+        Zn = (np.asarray(Z_new, float) - mu) / sd
+        return Zn @ P            # returned in standardized, concept-nulled coordinates
 
     return erase
 

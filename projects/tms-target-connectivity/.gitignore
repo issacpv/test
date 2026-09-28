@@ -1,0 +1,61 @@
+# Data and derived artefacts - never commit these
+data/
+outputs/
+results/
+derivatives/
+cache/
+
+# Imaging, mesh and connectome files
+*.nii
+*.nii.gz
+*.mgz
+*.gii
+*.msh
+*.dconn.nii
+*.pconn.nii
+*.ptseries.nii
+*.dtseries.nii
+*.edf
+*.set
+*.fdt
+*.bdf
+*.nwb
+*.h5
+*.hdf5
+*.mat
+*.npy
+*.npz
+*.pkl
+
+# BIDS / datalad
+sub-*/
+.datalad/
+.git-annex/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Credentials - HCP AWS keys belong in the environment, never in the repo
+.env
+.env.*
+!.env.example
+.aws/
+*credentials*
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+requests>=2.31
+nibabel>=5.2
+# map fetching / transforms / parcellation (optional for the core nulls):
+# neuromaps>=0.0.5
+# abagen>=0.1.4
+# eigenstrapping>=0.1
+pytest>=7.4

@@ -28,14 +28,14 @@ Single-neuron full-morphology datasets registered to CCFv3 (Wang et al., 2020, C
 **What is missing (verified by 2023-2026 searches)**
 
 1. A brain-wide, per-source-region *predictive benchmark*: treating the bulk projection vector as a classifier score for "does neuron n target region t?", with AUROC / precision-recall / weighted rank correlation, across all source regions with ≥ 10 reconstructed neurons.
-2. A sampling-aware null: single neurons drawn *independently* from the bulk distribution already produce heterogeneous target sets; excess heterogeneity beyond that null is what indicates structured subpopulations (parallel channels). No published heterogeneity metric includes this null or corrects for unequal neuron counts across regions (rarefaction).
+2. A sampling-aware null: single neurons drawn *independently* from the bulk distribution already produce heterogeneous target sets (random sampling maximises motif diversity). Deviation from that null is what distinguishes structure from random divergence: a *deficit* of heterogeneity means neurons cluster into a limited set of projection motifs (parallel channels / subpopulations), an *excess* means mutually exclusive targeting beyond chance. No published heterogeneity metric includes this null or corrects for unequal neuron counts across regions (rarefaction).
 3. A "how many neurons recover the bulk map?" analysis (subsampling curves of pooled single-neuron axon length vs. bulk density) per region, with its dependence on cell type (Cre line / soma layer) and on the axon-length vs. terminal-count weighting.
 4. Quantified consequences for network models: re-parameterising a TVB-style mouse model with single-neuron-derived edge weights (and with heterogeneity-scaled edge variance) and measuring the change in simulated functional connectivity and in graph metrics against the bulk-parameterised model.
 
 ## Research questions / hypotheses
 
 1. **H1 (bulk predicts targets only coarsely).** Using bulk normalised projection volume of the source region as a score, per-neuron AUROC for target membership is > 0.7 on average but with a wide range across regions; precision at k = 5 targets is < 0.5, i.e. the majority of bulk "top targets" are not targeted by any given neuron.
-2. **H2 (excess heterogeneity).** In most cortical and thalamic source regions, observed pairwise Jaccard distance between neurons exceeds the independent-sampling-from-bulk null (z > 3), indicating parallel subpopulations rather than random divergence; the excess is larger for cortical L5 ET / L2-3 IT than for thalamic relay neurons.
+2. **H2 (motif structure beyond random sampling).** In most cortical source regions, the observed pairwise Jaccard distance between neurons falls *below* the independent-sampling-from-bulk null (z < −3): neurons cluster into a limited set of projection motifs (parallel channels) rather than sampling targets at random from the bulk map. The deficit is larger for cortical L5 ET / L2-3 IT populations than for thalamic relay neurons (which we expect to be close to the null). Regions with z > 3 (mutually exclusive targeting) are predicted to be rare and to coincide with known anti-correlated pathways (e.g. striatum-projecting vs. brainstem-projecting subclasses).
 3. **H3 (recovery curve).** Pooling n single neurons recovers the bulk vector with Spearman rho > 0.8 for n ≈ 30-100 in most regions; the required n scales with the heterogeneity index.
 4. **H4 (model consequences).** Replacing bulk-derived edge weights with single-neuron-derived weights changes simulated FC (TVB reduced-Wong-Wang or Wilson-Cowan) by a Frobenius-normalised difference > 0.2 for regions with high heterogeneity index, and shifts hub rankings (Kendall tau < 0.8).
 5. **H5 (bias direction).** Bulk projection density over-represents targets reached by fibres of passage and by high-bouton-density collaterals; single-neuron terminal counts vs. axon length weighting reveal this systematically (terminal-based concordance < length-based concordance for white-matter-adjacent targets).
@@ -56,22 +56,22 @@ Single-neuron full-morphology datasets registered to CCFv3 (Wang et al., 2020, C
 1. **Bulk projection vectors** (`src/meso_vs_axon/allen_connectivity.py`): for each source summary structure, average `normalized_projection_volume` (and `projection_density`) over wild-type experiments whose injection is centred in the structure (injection fraction ≥ 0.5), split ipsi/contra; alternative: Cre-line experiments matched to the single-neuron dataset's Cre line; alternative: `mcmodels` voxel model evaluated at each neuron's soma voxel (removes injection-site mismatch).
 2. **Single-neuron target vectors** (`ccf_assign.py`): axon nodes mapped to CCFv3 annotation voxels (25 µm), collapsed to summary structures via the ontology ancestor map, split ipsi/contra relative to the soma; two weightings: axon length per target and terminal (tip) count per target; normalised to fractions; binarised at ≥ 1% of axon length or ≥ 2 terminals.
 3. **Concordance** (`concordance.py`): per neuron — Jaccard with the binarised bulk vector, Spearman and weighted Kendall tau (top-weighted), AUROC and precision/recall at k using the bulk vector as score; per region — pooled single-neuron vector vs. bulk correlation; subsampling curves; label-permutation null.
-4. **Heterogeneity index** (`heterogeneity.py`): mean pairwise Jaccard distance among neurons of a region (PHI), motif entropy, divergence (targets per neuron), bulk-explained fraction; independent-sampling null (each neuron draws its observed number of targets without replacement with probabilities ∝ bulk vector); excess heterogeneity z-score; neuron-level bootstrap CIs; rarefaction to a common n across regions.
+4. **Heterogeneity index** (`heterogeneity.py`): mean pairwise Jaccard distance among neurons of a region (PHI), motif entropy, divergence (targets per neuron), bulk-explained fraction; independent-sampling null (each neuron draws its observed number of targets without replacement with probabilities ∝ bulk vector); null-deviation z-score (negative = parallel channels, positive = mutually exclusive targeting); neuron-level bootstrap CIs; rarefaction to a common n across regions.
 5. **Cell-type stratification**: soma layer (from CCF layer annotation) and Cre line (SEU-ALLEN metadata) as strata; compare PHI within vs. across strata to separate "type mixture" from "within-type divergence".
 6. **Network-model consequences**: build region × region weight matrices from (a) bulk, (b) pooled single neurons, (c) bulk with per-edge variance from PHI; simulate with The Virtual Brain (mouse connectome pipeline of Melozzi 2017) and compare FC and graph metrics.
 7. **Tools**: allensdk, mcmodels, numpy/scipy/pandas, scikit-learn (AUROC), tvb-library (optional), networkx.
 
 ## Evaluation & statistics
 
-- Primary estimands per source region: mean per-neuron AUROC (95% neuron-bootstrap CI), precision@5, weighted tau; PHI with CI; excess-heterogeneity z; n_50 (neurons needed for rho ≥ 0.8 with the bulk vector).
+- Primary estimands per source region: mean per-neuron AUROC (95% neuron-bootstrap CI), precision@5, weighted tau; PHI with CI; null-deviation z (two-sided); n_50 (neurons needed for rho ≥ 0.8 with the bulk vector).
 - Nulls: (a) independent sampling from bulk (H2); (b) target-label permutation (destroys region identity; H1 floor); (c) bulk vector from a *different* source region (specificity check: the correct region's bulk vector should predict better than a random region's).
 - Leakage/validity: exclude single neurons whose soma is outside the injection structure or within 100 µm of its boundary; exclude bulk experiments with injection fraction < 0.5 or with reported leakage; ipsi/contra assignment checked against the MouseLight per-node `allenId` field.
-- Multiple comparisons: BH-FDR across regions for excess-heterogeneity tests; effect sizes reported everywhere.
+- Multiple comparisons: BH-FDR across regions for null-deviation tests; effect sizes reported everywhere.
 - Sensitivity: 10 vs. 25 µm annotation; summary structures vs. finer (layer-level) parcellation; length vs. terminal weighting; wild-type vs. Cre-matched bulk; MouseLight vs. SEU-ALLEN dataset (dataset as a covariate — different labelling, imaging and registration pipelines).
 
 ## Publishable angle
 
-- **Headline**: "Bulk tracer maps predict individual axon targets with AUROC ≈ X but precision ≈ Y; N of M source regions show excess single-neuron heterogeneity beyond random sampling of the bulk map, revealing parallel projection channels invisible to population tracing; re-parameterising a whole-brain mouse model with single-neuron weights changes simulated FC by Z." Plus a released per-region heterogeneity table for modellers.
+- **Headline**: "Bulk tracer maps predict individual axon targets with AUROC ≈ X but precision ≈ Y; in N of M source regions single neurons are organised into far fewer projection motifs than random sampling of the bulk map would produce, revealing parallel projection channels invisible to population tracing; re-parameterising a whole-brain mouse model with single-neuron weights changes simulated FC by Z." Plus a released per-region heterogeneity table for modellers.
 - Target venues: *Nature Communications*, *PLoS Computational Biology*, *Network Neuroscience*, *Cell Reports* (resource-style), *eNeuro* (if narrower).
 - Follow-ups: cross-validate with MAPseq/BARseq combinatorics; extend to bouton-level (synapse-proxy) weighting using the 2025 bouton-net; human/NHP mesoscale vs. single-axon once data exist.
 
@@ -89,7 +89,7 @@ Single-neuron full-morphology datasets registered to CCFv3 (Wang et al., 2020, C
 - [ ] Bulk projection matrix (wild-type, ipsi/contra, summary structures) cached; injection-fraction QC.
 - [ ] Single-neuron ingest: MouseLight JSON + SEU-ALLEN SWC → CCF target vectors; agreement with MouseLight `allenId` > 95% of nodes.
 - [ ] Concordance benchmark for all regions with ≥ 10 neurons (H1); specificity null.
-- [ ] Heterogeneity index, independent-sampling null, bootstrap CI, rarefaction (H2).
+- [ ] Heterogeneity index, independent-sampling null and null-deviation z, bootstrap CI, rarefaction (H2).
 - [ ] Recovery curves and n_50 per region (H3).
 - [ ] Cell-type stratification; length vs. terminal weighting (H5).
 - [ ] TVB re-parameterisation experiment (H4).

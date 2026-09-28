@@ -174,10 +174,13 @@ def coupling_metrics(x: np.ndarray, fs: float, hypno_samples: np.ndarray, spindl
     }
 
 
-def phase_to_zscore(mrl: float, n: int) -> float:
-    """Approximate z for an MRL given n events under uniformity (Rayleigh normal approximation)."""
+def mrl_to_zscore(mrl: float, n: int) -> float:
+    """Normal-deviate equivalent of the Rayleigh p-value for an MRL with ``n`` events.
+
+    Useful to compare coupling precision across nights with different numbers of
+    coupled spindles (the raw MRL is biased upward for small ``n``).
+    """
     if not np.isfinite(mrl) or n <= 0:
         return np.nan
-    _, p = rayleigh_test(np.zeros(0)) if n == 0 else (None, None)
-    z = mrl * np.sqrt(n)
-    return float(norm.isf(np.exp(-z ** 2)) if z > 0 else 0.0)
+    p = np.exp(-n * mrl ** 2)  # large-n Rayleigh approximation
+    return float(norm.isf(min(max(p, 1e-300), 1.0)))

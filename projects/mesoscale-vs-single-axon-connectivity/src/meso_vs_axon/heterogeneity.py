@@ -8,9 +8,11 @@ Components computed on a neurons x targets matrix ``M`` (fractions) binarised at
 * ``bulk_explained``: mean per-neuron cosine similarity to the bulk vector (if given).
 
 The key null is **independent sampling from the bulk map**: each neuron draws its observed number
-of targets without replacement with probabilities proportional to the bulk vector. Heterogeneity
-in excess of this null (z-score) indicates structured subpopulations (parallel channels) rather
-than random divergence. Bootstrap CIs resample neurons; rarefaction equalises n across regions.
+of targets without replacement with probabilities proportional to the bulk vector. Random sampling
+maximises motif diversity, so a PHI *below* the null (negative z) means neurons cluster into a
+limited set of projection motifs (parallel channels / subpopulations), whereas a PHI *above* the
+null (positive z) means targets are combined more exclusively than chance (anti-correlated
+pathways). Bootstrap CIs resample neurons; rarefaction equalises n across regions.
 """
 from __future__ import annotations
 
@@ -107,15 +109,24 @@ def independent_sampling_null(bulk: Sequence[float], n_targets_per_neuron: Seque
     return out
 
 
-def excess_heterogeneity(M, bulk: Sequence[float], threshold: float = 0.01, n_sim: int = 500, seed: int = 0) -> Dict[str, float]:
-    """Observed PHI vs the independent-sampling null: z-score and one-sided p."""
+def null_deviation(M, bulk: Sequence[float], threshold: float = 0.01, n_sim: int = 500, seed: int = 0) -> Dict[str, float]:
+    """Observed PHI vs the independent-sampling null: z-score and two-sided permutation p.
+
+    ``z < 0``: fewer distinct motifs than random draws from the bulk map (parallel channels);
+    ``z > 0``: more mutually exclusive targeting than chance.
+    """
     B = _binary_matrix(M, threshold)
     obs = mean_pairwise_jaccard_distance(B)
     null = independent_sampling_null(bulk, B.sum(axis=1), n_sim=n_sim, seed=seed)
     sd = null.std(ddof=1)
     z = (obs - null.mean()) / sd if sd > 0 else float("nan")
-    p = float((np.sum(null >= obs) + 1) / (n_sim + 1))
-    return {"phi_observed": obs, "phi_null_mean": float(null.mean()), "phi_null_sd": float(sd), "z": float(z), "p": p}
+    p_upper = (np.sum(null >= obs) + 1) / (n_sim + 1)
+    p_lower = (np.sum(null <= obs) + 1) / (n_sim + 1)
+    return {"phi_observed": obs, "phi_null_mean": float(null.mean()), "phi_null_sd": float(sd), "z": float(z),
+            "p": float(min(1.0, 2 * min(p_upper, p_lower)))}
+
+
+excess_heterogeneity = null_deviation  # backwards-compatible alias
 
 
 def bootstrap_ci(M, stat: Callable[[np.ndarray], float] = mean_pairwise_jaccard_distance, threshold: float = 0.01,
@@ -143,7 +154,7 @@ def rarefied_statistic(M, n_common: int, stat: Callable[[np.ndarray], float] = m
 def region_table(M_by_region: Dict[str, pd.DataFrame], bulk_by_region: Optional[Dict[str, pd.Series]] = None,
                  threshold: float = 0.01, n_common: Optional[int] = None, n_sim: int = 300, n_boot: int = 500,
                  min_neurons: int = 10, seed: int = 0) -> pd.DataFrame:
-    """Per-region heterogeneity summary: PHI with bootstrap CI, rarefied PHI, excess-heterogeneity z/p."""
+    """Per-region heterogeneity summary: PHI with bootstrap CI, rarefied PHI, null-deviation z/p (``dev_*``)."""
     rows = []
     for region, M in M_by_region.items():
         if len(M) < min_neurons:
@@ -157,10 +168,11 @@ def region_table(M_by_region: Dict[str, pd.DataFrame], bulk_by_region: Optional[
         if n_common is not None:
             row["phi_rarefied"] = rarefied_statistic(M, n_common, threshold=threshold, seed=seed)
         if bulk is not None and np.sum(bulk) > 0:
-            row.update({f"excess_{k}": v for k, v in excess_heterogeneity(M, bulk, threshold, n_sim, seed).items()})
+            row.update({f"dev_{k}": v for k, v in null_deviation(M, bulk, threshold, n_sim, seed).items()})
         rows.append(row)
     return pd.DataFrame(rows).set_index("region") if rows else pd.DataFrame()
 
 
 __all__ = ["mean_pairwise_jaccard_distance", "motif_entropy", "divergence", "bulk_explained", "heterogeneity_index",
-           "independent_sampling_null", "excess_heterogeneity", "bootstrap_ci", "rarefied_statistic", "region_table"]
+           "independent_sampling_null", "null_deviation", "excess_heterogeneity", "bootstrap_ci", "rarefied_statistic",
+           "region_table"]

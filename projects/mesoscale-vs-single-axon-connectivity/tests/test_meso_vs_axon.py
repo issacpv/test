@@ -84,13 +84,18 @@ def test_mouselight_json_roundtrip(tmp_path):
 
 
 # ---------------------------------------------------------------------- concordance
-def _synthetic_population(n_neurons=60, n_targets=30, n_channels=3, seed=0, structured=True):
-    """Neurons drawn from distinct projection 'channels' (structured) or from the pooled bulk (null)."""
+def _synthetic_population(n_neurons=60, n_targets=30, n_channels=3, seed=0, structured=True, channel_seed=0):
+    """Neurons drawn from distinct projection 'channels' (structured) or from the pooled bulk (null).
+
+    ``channel_seed`` fixes the channels (hence the bulk vector) so that structured and null
+    populations can be compared against the same bulk map.
+    """
+    crng = np.random.default_rng(channel_seed)
     rng = np.random.default_rng(seed)
     channels = np.zeros((n_channels, n_targets))
     for c in range(n_channels):
-        idx = rng.choice(n_targets, size=6, replace=False)
-        channels[c, idx] = rng.dirichlet(np.ones(6))
+        idx = crng.choice(n_targets, size=6, replace=False)
+        channels[c, idx] = crng.dirichlet(np.ones(6))
     bulk = channels.mean(axis=0)
     M = np.zeros((n_neurons, n_targets))
     for i in range(n_neurons):
@@ -134,17 +139,19 @@ def test_heterogeneity_and_independent_sampling_null():
     h = het.heterogeneity_index(M_struct, bulk.to_numpy())
     assert 0 <= h["phi_jaccard"] <= 1 and 0 <= h["motif_entropy"] <= 1
     assert h["targets_per_neuron"] == pytest.approx(6, abs=0.5)
-    # structured population: channels are more similar within than random sampling -> lower PHI than null
-    ex_struct = het.excess_heterogeneity(M_struct, bulk.to_numpy(), n_sim=100)
-    ex_null = het.excess_heterogeneity(M_null, bulk.to_numpy(), n_sim=100)
-    assert ex_struct["z"] < ex_null["z"]
-    assert abs(ex_null["z"]) < 3.5  # neurons sampled from bulk are consistent with the null
+    # parallel channels -> fewer distinct motifs than random draws from the bulk map -> PHI below the null
+    dev_struct = het.null_deviation(M_struct, bulk.to_numpy(), n_sim=100)
+    dev_null = het.null_deviation(M_null, bulk.to_numpy(), n_sim=100)
+    assert dev_struct["z"] < -2 and dev_struct["p"] < 0.05
+    assert abs(dev_null["z"]) < 3.5  # neurons sampled independently from the bulk are consistent with the null
+    assert dev_struct["z"] < dev_null["z"]
     est, lo, hi = het.bootstrap_ci(M_struct, n_boot=100)
     assert lo <= est <= hi
     r = het.rarefied_statistic(M_struct, n_common=20, n_rep=20)
     assert 0 <= r <= 1
     table = het.region_table({"R1": M_struct, "R2": M_null}, {"R1": bulk, "R2": bulk}, n_common=20, n_sim=50, n_boot=50)
-    assert set(table.index) == {"R1", "R2"} and "excess_z" in table.columns
+    assert set(table.index) == {"R1", "R2"} and "dev_z" in table.columns
+    assert table.loc["R1", "dev_z"] < table.loc["R2", "dev_z"]
 
 
 def test_identical_neurons_have_zero_heterogeneity():

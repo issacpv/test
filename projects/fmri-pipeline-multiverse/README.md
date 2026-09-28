@@ -9,6 +9,45 @@
 | **Compute** | Parcel-level GLM multiverse: ~360 specs × ~700 subject-runs ≈ minutes-hours on a workstation (NumPy path). Voxel-wise arm (nilearn) for the 8 primary pipelines: ~1 day on 16 cores. fMRIPrep re-runs (version arm, 2 versions × 30 subjects × 2 datasets): 600–1,000 CPU-h on a cluster. Storage ~0.5 TB for preprocessed BOLD. |
 | **Package** | `src/fmri_multiverse` |
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests -q                                   # synthetic confounds/design/GLM/spec-curve tests
+python scripts/download_data.py --check                     # which registry datasets ship fMRIPrep derivatives (GraphQL)
+python scripts/download_data.py --dataset ds002785 --task workingmemory --bold --n-subjects 50
+```
+
+```python
+import sys; sys.path.insert(0, "src")
+import numpy as np, pandas as pd
+from fmri_multiverse import fetch, confounds, glm, speccurve
+
+runs = fetch.find_runs("data/ds002785", task="workingmemory")            # BOLD + confounds + events per subject
+specs = glm.enumerate_multiverse()                                        # 360 PipelineSpec objects
+effects = {}                                                              # {spec.label: [per-subject ROI effect]}
+for spec in specs:
+    for r in runs:
+        reg, mask = confounds.load_confounds_for(r.bold, spec.confounds)  # nilearn if present, else TSV fallback
+        ts = np.load(f"work/{r.subject}_{spec.parcellation}.npy")         # (T, n_parcels) parcel time series
+        res = glm.run_first_level_numpy(ts, pd.read_csv(r.events, sep="\t"), tr=2.0, spec=spec,
+                                        confounds=reg, sample_mask=mask, contrasts={"wm": "active - passive"})
+        effects.setdefault(spec.label, []).append(res["wm"]["effect"][ROI_INDEX])
+E = np.array([effects[s.label] for s in specs])                          # (n_specs, n_subjects)
+print(speccurve.multiverse_inference(E, n_perm=5000))                    # PRS, p_median, p_share, CIs
+table = pd.DataFrame([s.as_dict() for s in specs]).assign(effect=E.mean(1), p=glm.second_level_onesample(E.T)["p"])
+print(speccurve.robustness_score(table)); print(speccurve.variance_decomposition(table, "effect", list(glm.DEFAULT_GRID)))
+```
+
+Repository layout:
+
+```
+src/fmri_multiverse/     fetch (registry, GraphQL, S3, DataLad) · confounds · glm · speccurve
+scripts/download_data.py --check / --sample / --dataset ... (openneuro-py, AWS CLI or DataLad)
+data/README.md           download routes, sizes, parcellations, fMRIPrep re-run recipe, ground-truth results
+tests/                   synthetic confounds table, planted GLM effects, null/signal multiverses
+```
+
 ## Background
 
 Task-fMRI analysis involves thousands of defensible choices (Carp, 2012, *Front Neurosci*). NARPS (Botvinik-Nezer et al., 2020, *Nature*) found substantial disagreement across 70 teams on the same data; Bowring et al. (2019, 2022, *HBM*) isolated software and pipeline sources of variability; Dafflon et al. (2022, *Nat Commun*) introduced *guided* multiverse exploration; Germani et al. (2025, *Sci Data*) released HCP Multi-Pipeline (24 pipelines × 1,080 subjects); Li et al. (2024, *Nat Hum Behav*) showed low inter-pipeline agreement in rest-fMRI connectivity that is masked until data reliability is high; Wang et al. (2024, *PLoS Comput Biol*) built a continuous benchmark of fMRIPrep confound strategies through Nilearn's `load_confounds`; and the multiverse of graph-based fMRI has been catalogued (Comet toolbox, *Imaging Neuroscience* 2025). Inference over multiverses has matured in psychology (Steegen et al., 2016; Simonsohn, Simmons & Nelson, 2020, *Nat Hum Behav*) and is now being adapted to neuroimaging ("Statistical inference for same-data meta-analysis in neuroimaging multiverse analyses", *Imaging Neuroscience* 2025).
@@ -62,6 +101,26 @@ Run `python scripts/download_data.py --check` to confirm derivative availability
 7. **Multiverse inference** (`multiverse_inference`): sign-flip null of the median effect and of the share of significant specs (Simonsohn 2020 adapted to one-sample designs); subject bootstrap CIs for PRS.
 8. **Fragility model** (`fit_fragility_model`): leave-one-finding-out ridge from dataset/design features (n, TR, volumes, mean FD, % FD > 0.5, multiband, block vs event, events per run, conditions, |median effect|) to PRS; mixed model with dataset random intercept in statsmodels as a check.
 9. **Validation against NARPS**: nine hypotheses vs. team-level agreement; against HCP Multi-Pipeline group maps for the 5 contrasts (Dice of thresholded maps across pipelines vs. our PRS).
+
+**Findings registry** (`fetch.DATASETS`; one PRS per row; ROIs from the source papers, both atlas label and 6-mm sphere):
+
+| Dataset | Task | Contrast | A-priori ROI | Source | Derivatives |
+|---|---|---|---|---|---|
+| ds001734 | MGT | gain (parametric) | vmPFC, ventral striatum (NARPS H1–H4) | Botvinik-Nezer 2020 | shipped (1.1.4) |
+| ds001734 | MGT | loss (parametric) | amygdala, vmPFC (H5–H9) | Botvinik-Nezer 2020 | shipped (1.1.4) |
+| ds000030 | stopsignal | STOP_SUCCESS − GO | right IFG, pre-SMA | Poldrack 2016 | shipped |
+| ds000030 | bart | ACCEPT − REJECT | ventral striatum | Poldrack 2016 | shipped |
+| ds000030 | scap | load 4 − load 1 | dlPFC, IPS | Poldrack 2016 | shipped |
+| ds002785 | workingmemory | active − passive | dlPFC, IPS | Snoek 2021 | shipped (1.3.2) |
+| ds002785 | emomatching | emotion − control | amygdala, fusiform | Snoek 2021 | shipped (1.3.2) |
+| ds002785 | gstroop | incongruent − congruent | dACC | Snoek 2021 | shipped (1.3.2) |
+| ds002790 | workingmemory | active − passive | dlPFC, IPS | Snoek 2021 | shipped (1.3.2) |
+| ds002790 | stopsignal | stop − go | right IFG, pre-SMA | Snoek 2021 | shipped (1.3.2) |
+| ds000117 | facerecognition | faces − scrambled | FFA, OFA | Wakeman & Henson 2015 | **verify** |
+| ds000228 | pixar | mental − pain (reverse correlation) | TPJ, mPFC | Richardson 2018 | **verify** |
+| ds003097 | moviewatching | inter-subject correlation (ISC arm) | visual, auditory | Snoek 2021 | shipped (1.3.2) |
+
+Null-contrast controls (odd − even trials, or run 1 − run 2 of the same condition) are added for every dataset; their PRS calibrates the score (expected ≈ α).
 
 ## Evaluation & statistics
 

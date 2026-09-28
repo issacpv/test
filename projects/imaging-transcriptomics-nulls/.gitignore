@@ -1,0 +1,36 @@
+# data & outputs (AHBA microarray ~4 GB, HCP maps, gene annotations)
+data/*
+!data/README.md
+outputs/
+results/
+*.nii
+*.nii.gz
+*.gii
+*.dlabel.nii
+*.dscalar.nii
+*.pscalar.nii
+*.parquet
+*.csv
+*.tsv
+*.obo
+*.gz
+*.zip
+abagen-data/
+neuromaps-data/
+
+# credentials (ConnectomeDB / NDA / BALSA)
+.env
+*.token
+.aws/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.mypy_cache/

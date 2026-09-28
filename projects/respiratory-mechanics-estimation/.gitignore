@@ -1,0 +1,17 @@
+data/*
+!data/README.md
+outputs/
+*.csv.gz
+*.parquet
+*.duckdb
+*.nii.gz
+*.edf
+*.nwb
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.env
+.venv/
+*.egg-info/
+.pytest_cache/
+kaggle.json

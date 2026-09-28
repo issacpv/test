@@ -9,6 +9,45 @@
 | **Compute** | Gradients/dynamic FC: workstation, ~1 h for 1,000 subjects from parcellated time series. Individual SC: MRtrix3 tractography ≈ 3 CPU-h × ~450 twins/siblings (cluster, ~1.5k CPU-h). Spins/bootstraps: minutes. |
 | **Package** | `src/conn_h2` |
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests -q                       # synthetic twins, block FC, spheres - no downloads
+python scripts/download_data.py --sample        # parcellation files + HCP dry-run listing + restricted-data instructions
+```
+
+```python
+import sys; sys.path.insert(0, "src")
+import numpy as np, pandas as pd
+from conn_h2 import gradients, features, heritability, spatial_nulls
+
+df = pd.read_csv("data/hcp/restricted.csv")                     # Subject, Family_ID, ZygosityGT, Mother_ID, Father_ID
+pairs = heritability.build_twin_pairs(df); print(pairs.summary())
+fc_list = [np.load(f"data/fc/{s}_schaefer400.npy") for s in df["Subject"]]   # (400, 400) Fisher-z per subject
+loads, ecc = gradients.subject_gradient_features(fc_list, n_components=3)    # (n, 400, 3), (n, 400)
+cov = df[["Age_in_Yrs", "sex", "mean_rms"]].to_numpy()
+h2_g1 = heritability.heritability_map(loads[:, :, 0], pairs, method="ace", covariates=cov)
+h2_ecc = heritability.heritability_map(ecc, pairs, method="falconer", covariates=cov, n_boot=1000)
+sc_list = [np.loadtxt(f"data/sc/{s}_schaefer400_sift2.csv", delimiter=",") for s in df["Subject"]]
+coupling = np.vstack([features.sc_fc_coupling(sc, fc) for sc, fc in zip(sc_list, fc_list)])
+h2_cpl = heritability.heritability_map(coupling, pairs, method="ace", covariates=cov)
+
+spins = spatial_nulls.spin_permutations(lh_centroids, rh_centroids, n_perm=10000)  # fsLR sphere centroids
+print(spatial_nulls.spatial_correlation_test(h2_g1["h2"].to_numpy(), h2_cpl["h2"].to_numpy(), spins))
+expr = spatial_nulls.fetch_expression("data/parcellations/Schaefer2018_400Parcels_7Networks_order_FSLMNI152_2mm.nii.gz")
+print(spatial_nulls.random_gene_set_null(h2_g1["h2"].to_numpy(), expr, oligodendrocyte_markers, spins=spins))
+```
+
+Repository layout:
+
+```
+src/conn_h2/             gradients · features (SC-FC coupling, dynamic states) · heritability · spatial_nulls
+scripts/download_data.py HCP rest/diffusion via S3, parcellations, abagen fetch, restricted-data instructions
+data/README.md           acquisition, tractography recipe, surfaces for spins, ABCD
+tests/test_conn_h2.py    simulated MZ/DZ twins with known h2, block FC, synthetic spheres
+```
+
 ## Background
 
 The principal functional gradient (Margulies et al., 2016, *PNAS*) orders cortex from unimodal to transmodal regions and organises where structure and function decouple (Vázquez-Rodríguez et al., 2019, *PNAS*; Baum et al., 2020, *PNAS*). Twin designs in HCP show that FC edges (Ge et al., 2017, *PNAS*; Colclough et al., 2017), individualised network topography (Anderson et al., 2021, *PNAS*), regional SC–FC coupling (Gu et al., 2021, *Nat Commun*), dynamic-state occupancy and transition trajectories (Vidaurre et al., 2017, *PNAS*; Jun et al., 2022, *NeuroImage*) and cortical microstructure-function coupling (Valk et al., 2022, *Nat Commun*) are all heritable. Since 2024 gradient heritability itself has been mapped: subcortico-cortical gradients (*Commun Biol* 2024), cortical sensorimotor–association gradient loadings (HCP twins, h² ≈ 0.57 after modelling intra-individual variance, 2025), functional–structural *gradient coupling* (*Nat Commun* 2026, HCP + ABCD, enriched for deep-layer excitatory-neuron genes), and GWAS of gradient loadings in > 30,000 UK Biobank participants with transcriptomic alignment (Wan et al., 2025, *medRxiv*).
@@ -57,6 +96,20 @@ The principal functional gradient (Margulies et al., 2016, *PNAS*) orders cortex
 5. **Multiverse of h².** Grid: sparsity {0.8, 0.9, 0.95} × kernel {normalised angle, cosine, none} × components {5, 10} × alignment {Procrustes, joint} × parcellation {Schaefer-200/400, Glasser} → 72 variants; heritability map per variant; stability = pairwise Spearman ρ and rank-tertile agreement.
 6. **Transcriptomics.** `spatial_nulls.fetch_expression` (abagen, bidirectional mirroring, interpolate, matched normalisation); PC1 of expression; cell-type marker sets (Lake et al. 2018 / Seidlitz et al. 2020 gene lists); `random_gene_set_null` with 10,000 random sets **and** `spin_permutations` (10,000) — significance requires both p < 0.05 after BH-FDR.
 7. **Replication.** ABCD baseline: identical pipeline, genotyped twins; compare maps with spin tests.
+
+**Feature × estimator matrix** (every cell = one 400-region map with bootstrap CIs; primary cells in bold):
+
+| Feature (per region) | Function | Falconer | DF regression | ML-ACE (+AE/CE/E LRT) | Retest ICC ceiling |
+|---|---|---|---|---|---|
+| Gradient-1/2/3 loading | `gradients.subject_gradient_features` | screen | sensitivity | **primary** | HCP retest (n = 45) |
+| Eccentricity (G1–G3) | `gradients.gradient_dispersion` | screen | sensitivity | **primary** | HCP retest |
+| SC–FC coupling (Spearman) | `features.sc_fc_coupling` | screen | sensitivity | **primary** | retest (needs 2 diffusion sessions: HCP retest has them) |
+| Multilinear coupling R² | `features.multilinear_coupling` | screen | sensitivity | secondary | as above |
+| State fractional occupancy (K = 4–6) | `features.dynamic_state_features` | screen | sensitivity | **primary** (per state, not per region) | run-halves split |
+| Dwell time / transition probabilities | `features.state_metrics` | screen | – | secondary | run-halves split |
+| Bivariate rG (G1 × coupling, G1 × FO, ecc × coupling) | `heritability.genetic_correlation_falconer` → OpenMx Cholesky | screen | – | **confirmatory** | – |
+
+Sample sizes per cell (HCP S1200, verify from the restricted export): ≈ 130–150 MZ pairs, ≈ 70–90 DZ pairs, plus non-twin sibling pairs in the sensitivity ACE; ABCD ≈ 400–450 twin pairs for replication. A minimum of 60 pairs per zygosity is enforced before a cell is reported.
 
 ## Evaluation & statistics
 

@@ -44,7 +44,7 @@ def waveform_features(x: np.ndarray) -> np.ndarray:
         fft = np.abs(np.fft.rfft(lead))
         band = fft[1:20].sum() / (fft.sum() + 1e-9)  # low-frequency power fraction
         zcr = np.mean(np.abs(np.diff(np.sign(lead)))) / 2.0
-        feats.extend([lead.mean(), lead.std(), lead.ptp(), band, zcr])
+        feats.extend([lead.mean(), lead.std(), float(np.ptp(lead)), band, zcr])
     return np.asarray(feats, dtype=float)
 
 

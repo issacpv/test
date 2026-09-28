@@ -1,0 +1,14 @@
+numpy>=1.26,<3
+pandas>=2.1,<3
+scipy>=1.11
+scikit-learn>=1.3
+requests>=2.31
+tqdm>=4.66
+matplotlib>=3.8
+h5py>=3.10
+allensdk>=2.16 ; python_version < "3.12"
+neurom>=3.2
+# full biophysical simulations (optional): NEURON + LFPy or BMTK
+neuron>=8.2 ; platform_system != "Windows"
+LFPy>=2.3 ; platform_system != "Windows"
+pytest>=7.4

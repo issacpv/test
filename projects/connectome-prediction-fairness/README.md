@@ -9,6 +9,44 @@
 | **Compute** | Laptop-scale once FC matrices exist (n≈1,000 × 79,800 edges; ridge/CPM in seconds). Parcellating HCP dense time series needs ~1 TB scratch and a workstation (or use the PTN release: <20 GB). |
 | **Package** | `src/cpm_fair` |
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests -q                    # synthetic-data tests, no downloads
+python scripts/download_data.py --sample     # AOMIC confounds for 2 subjects + HCP dry-run listing
+```
+
+```python
+import sys; sys.path.insert(0, "src")
+from cpm_fair import fc_loader, predictors, subgroup_metrics, reweighting, mediation
+
+df = fc_loader.load_hcp_subject_table("data/hcp/unrestricted.csv", "data/hcp/restricted.csv")
+X, ids = fc_loader.build_fc_dataset(
+    df["Subject"], lambda s, run: f"data/hcp/{s}/{run}/{run}_Atlas_MSMAll_hp2000_clean.Schaefer400.ptseries.nii")
+df = df.set_index("Subject").loc[ids]
+groups = fc_loader.define_subgroups(df)                       # race/ethnicity label (restricted data)
+y = df["CogTotalComp_Unadj"].to_numpy()
+conf = df[["Age_in_Yrs", "Movement_RelativeRMS_mean"]].assign(sex=(df["Gender"] == "F").astype(int)).to_numpy()
+
+preds = predictors.cross_val_predict_family(predictors.RidgeFC(), X, y, df["family"], stratify=groups, confounds=conf)
+print(subgroup_metrics.subgroup_performance(preds["y"], preds["y_hat"], groups))
+print(subgroup_metrics.cluster_bootstrap_gap(preds["y"], preds["y_hat"], groups, df["family"], reference="White"))
+print(subgroup_metrics.error_structure(preds["y"], preds["y_hat"], groups, reference="White"))
+print(reweighting.evaluate_training_schemes(X, y, groups, df["family"])["group_dro"])
+print(mediation.decompose_gap(preds["y"], preds["y_hat"], groups, df["Movement_RelativeRMS_mean"],
+                              reference="White", target="Black or African Am."))
+```
+
+Repository layout:
+
+```
+src/cpm_fair/            fc_loader · predictors · subgroup_metrics · reweighting · mediation
+scripts/download_data.py HCP (S3, credentials from env), AOMIC (anonymous S3), ABCD instructions
+data/README.md           step-by-step acquisition and expected layout
+tests/test_cpm_fair.py   synthetic cohort with families, subgroups and motion
+```
+
 ## Background
 
 Connectome-based predictive modelling (CPM; Finn et al., 2015, *Nat Neurosci*; Shen et al., 2017, *Nat Protoc*) and ridge/kernel regression on vectorised functional connectivity (FC) are the workhorses of individual-differences neuroimaging. They are increasingly proposed as biomarkers, yet the samples they are trained on are demographically skewed (HCP S1200 is ~75% White; ABCD ~52% White). Li et al. (2022, *Sci Adv*) showed that FC models trained on HCP and ABCD predict cognition and other behaviours *worse for African American participants* than for White Americans, even when trained on African-American-only samples; Greene et al. (2022, *Nature*) showed that models fail for individuals who "defy sample stereotypes" — errors track how far a person's sociodemographic/clinical profile is from the sample's modal profile. Benkarim et al. (2022, *PLoS Biol*) showed prediction accuracy in clinical cohorts is interlocked with population heterogeneity, and Kopal, Uddin & Bzdok (2023, *Nat Methods*) and Dhamala, Yeo & Holmes (2025, *Nat Neurosci*) argue that diversity must be modelled rather than adjusted away. Ricard et al. (2023, *Nat Neurosci*) lay out the acquisition-side causes.
@@ -65,6 +103,21 @@ The engineering question a BME researcher can answer is *why*: is the gap a prop
 8. **Causal decomposition** (`mediation`): (i) `matched_n_reference_performance` (train majority at minority n, 50 draws); (ii) `mediation_by_motion` on |error| with age/sex covariates and bootstrap CI; (iii) `motion_matched_subsample` evaluation (nearest-neighbour on RelativeRMS, caliper 0.02 mm); (iv) `attenuation_ceiling` from group-specific test–retest ICCs (HCP retest; ABCD baseline→2-year); (v) `decompose_gap` assembles the additive table and reports order sensitivity (all 3! orders).
 9. **Fixes** (`reweighting`): ERM baseline; inverse-frequency weights; balanced subsampling (upper bound per the 2025 ABCD benchmark); `GroupDRORidge` (exponentiated-gradient group weights + closed-form weighted ridge); optionally group-specific intercepts (a "group-aware" model that uses the label at test time — report separately because it is not deployable without the label).
 10. **Cross-dataset transport.** Train on HCP, test zero-shot on AOMIC (harmonised parcellation; sex and education gaps) and on HBN/NKI (race/ethnicity), then fine-tune with balanced weighting (n = 10, 30, 100 target subjects).
+
+**Pre-registered analysis grid** (primary endpoint in bold; everything else is sensitivity or secondary):
+
+| Factor | Levels |
+|---|---|
+| Target | **CogTotalComp_Unadj**; CogFluidComp_Unadj; PMAT24_A_CR; PSQI_Score (negative control) |
+| Features | **Schaefer-400 rest FC (4 runs)**; Glasser-360; PTN ICA-300; task FC (WM, language) |
+| Model | **ridge (RidgeFC)**; CPM p < 0.01; kernel ridge (Li et al. 2022 replication) |
+| Subgroup axis | **race (White vs. Black/African American)**; Hispanic/Latino; sex; SES tertile; race × sex cells (n ≥ 30) |
+| Training scheme | **ERM**; inverse-frequency; balanced subsample; group-DRO; group-specific intercept (label-at-test, reported separately) |
+| Confounds (in-fold) | **age, sex, mean RelativeRMS**; + ICV; none |
+| CV | **10 × 5-fold family-stratified**; 100 repeats for the primary endpoint |
+| Decomposition | matched-n (50 draws); motion-matching (200 draws, caliper 0.02 mm); attenuation ceiling (HCP retest ICC; ABCD 2-yr ICC) |
+
+Primary-endpoint tests: 1 target × 1 feature set × 1 model × 1 axis × 5 schemes = 5 gaps (Holm-corrected); the remaining ~700 cells of the grid are reported as heat-maps with CIs, not tested individually.
 
 ## Evaluation & statistics
 

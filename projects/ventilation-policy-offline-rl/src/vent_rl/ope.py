@@ -50,19 +50,33 @@ def pdis(traj: Trajectories, pi_e: np.ndarray, pi_b: np.ndarray, gamma: float = 
     """Per-decision importance sampling: sum_t gamma^t rho_{1:t} r_t (weighted per time step if `weighted`)."""
     rho = step_ratios(traj, pi_e, pi_b, clip)
     eps = traj.episodes()
-    H = max(len(ep) for ep in eps)
-    cum = np.zeros((len(eps), H))
-    rew = np.zeros((len(eps), H))
-    for i, ep in enumerate(eps):
-        cum[i, :len(ep)] = np.cumprod(rho[ep])
-        rew[i, :len(ep)] = traj.reward[ep]
+    cum, rew = _cumulative_weights(rho, traj.reward, eps)
+    H = cum.shape[1]
     disc = gamma ** np.arange(H)
     if weighted:
-        norm = np.clip(cum.sum(axis=0), 1e-300, None)  # per-time-step normalisation
+        norm = np.clip(cum.sum(axis=0), 1e-300, None)  # per-time-step self-normalisation
         v = float(np.sum(disc * (cum * rew).sum(axis=0) / norm))
     else:
         v = float(np.mean((cum * rew * disc).sum(axis=1)))
     return {"value": v, "ess": effective_sample_size(cum[:, 0]), "n_traj": len(eps)}
+
+
+def _cumulative_weights(rho: np.ndarray, reward: np.ndarray, eps: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+    """(n_traj, H) cumulative ratios rho_{1:t} and rewards, padded after termination.
+
+    After a trajectory ends its cumulative weight is carried forward (ratio 1 in the absorbing state) and
+    its reward is 0, so that per-time-step self-normalisation is over all n trajectories; with all ratios
+    equal to 1 this reduces exactly to the mean discounted return.
+    """
+    H = max(len(ep) for ep in eps)
+    cum = np.zeros((len(eps), H))
+    rew = np.zeros((len(eps), H))
+    for i, ep in enumerate(eps):
+        c = np.cumprod(rho[ep])
+        cum[i, :len(ep)] = c
+        cum[i, len(ep):] = c[-1]
+        rew[i, :len(ep)] = reward[ep]
+    return cum, rew
 
 
 # ----------------------------------------------------------------------------- FQE
@@ -127,10 +141,7 @@ def doubly_robust(traj: Trajectories, pi_e: np.ndarray, pi_b: np.ndarray, Q: np.
     V = (pi_e * Q).sum(axis=1)
     eps = traj.episodes()
     if weighted:
-        H = max(len(ep) for ep in eps)
-        cum = np.zeros((len(eps), H))
-        for i, ep in enumerate(eps):
-            cum[i, :len(ep)] = np.cumprod(rho[ep])
+        cum, _ = _cumulative_weights(rho, traj.reward, eps)
         norm = np.clip(cum.mean(axis=0), 1e-300, None)
     vals = []
     for i, ep in enumerate(eps):

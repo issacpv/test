@@ -6,7 +6,7 @@ A pre-registered factorial audit of brain-age modelling strategies (pooled witho
 
 - Status: design + starter code (FreeSurfer table parsing with four head-size corrections, strategy-aware brain-age estimator with bias correction and grouped CV, evaluation metrics including fairness gaps, ICC and outcome associations, and a simulation engine with known ground truth).
 - Difficulty: MSc-level for the ROI-feature version (6-9 months); PhD-chapter if a voxel/CNN arm (pyment/DeepBrainNet re-training) is included (+4 months).
-- Compute: ROI models train in seconds; the full factorial (4 strategies × 4 TIV corrections × 3 feature sets × 5 cohorts × 10 CV repeats) is a few CPU-hours. CNN re-training per sex requires one 24 GB GPU for ~1-2 days per configuration.
+- Compute: ROI models train in seconds; the full factorial (4 strategies × 5 TIV corrections × 3 feature sets × 5 cohorts × 10 CV repeats) is a few CPU-hours. CNN re-training per sex requires one 24 GB GPU for ~1-2 days per configuration.
 - Related project in this repository: `brain-age-transportability` (cross-cohort transport of brain-age models) and `lifespan-normative-models`. This folder is self-contained.
 
 ## Background
@@ -59,7 +59,7 @@ Feature extraction: FreeSurfer 7 `recon-all` (or the cohort-supplied FreeSurfer 
 
 ## Methods
 
-1. Feature tables (`sexstrat_brainage.freesurfer`): read `aparcstats2table`/`asegstats2table` wide tables; assemble 68 thicknesses, 68 areas, ~20 subcortical volumes, ventricles, eTIV; apply one of four head-size corrections (none, proportion, residual on eTIV fitted on training data, power-proportion); Euler-number QC exclusion (threshold chosen per cohort at the 5th percentile, with a sensitivity analysis).
+1. Feature tables (`sexstrat_brainage.freesurfer`): read `aparcstats2table`/`asegstats2table` wide tables; assemble 68 thicknesses, 68 areas, ~20 subcortical volumes, ventricles, eTIV; apply one of five head-size corrections (none = raw volumes, eTIV as covariate, proportion, residual on eTIV fitted on training data, power-proportion); Euler-number QC exclusion (threshold chosen per cohort at the 5th percentile, with a sensitivity analysis).
 2. Strategies (`sexstrat_brainage.models`): `BrainAgeEstimator(strategy=...)` wrapping ridge regression / kernel ridge / gradient boosting; strategies `pooled`, `pooled_sex` (sex as a feature), `stratified` (one model per sex), `pooled_sexbias` (pooled model, age-bias correction fitted separately per sex). Age-bias correction options: Beheshti-style (regress delta on age in training folds and subtract), de Lange/Cole-style (regress predicted on true age and invert). All corrections fitted inside CV training folds.
 3. Cross-validation: 10-fold `GroupKFold` by subject (and family ID for HCP-YA), 10 repeats; cohort held out entirely for transport analyses; harmonization by cohort × scanner with ComBat fitted on training folds when pooling cohorts.
 4. Evaluation (`sexstrat_brainage.evaluation`): MAE by sex and sex-gap with cluster bootstrap; delta ~ sex + age regression (spurious sex effect); partial association of delta with outcomes controlling age, sex, education and cohort (mixed model with cohort random intercept via statsmodels `MixedLM`); ICC(2,1) for retest; transport MAE by sex.

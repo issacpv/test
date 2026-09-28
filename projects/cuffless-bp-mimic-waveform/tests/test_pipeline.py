@@ -51,6 +51,7 @@ def test_beat_detection_recovers_hr_and_pat():
     feats = beats.pat_features(ecg, ppg, abp, fs)
     assert abs(feats["pat_foot"] - 0.25) < 0.04
     assert feats["pat_peak"] > feats["pat_foot"]
+    assert abs(feats["ptt_abp_ppg"]) < 0.03  # same onset in ABP and PPG for the synthetic window
     assert abs(feats["sbp"] - 120) < 3 and abs(feats["dbp"] - 80) < 3
     assert 80 < feats["map"] < 120
 

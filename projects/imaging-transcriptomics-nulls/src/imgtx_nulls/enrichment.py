@@ -70,6 +70,25 @@ def category_statistic(gene_r: np.ndarray, members: np.ndarray, statistic: str =
     return (M @ g) / M.sum(axis=1, keepdims=True if g.ndim == 2 else False).reshape(-1, *([1] if g.ndim == 2 else []))
 
 
+def _random_set_means(values: np.ndarray, size: int, n_draws: int, rng: np.random.Generator,
+                      chunk: int = 200) -> np.ndarray:
+    """Means of ``n_draws`` random ``size``-subsets of ``values`` (without replacement
+    within each draw).  Random keys + ``argpartition`` give uniform subsets in
+    vectorised chunks (memory ~ chunk x n_genes floats)."""
+    n = values.size
+    if size > n:
+        raise ValueError("gene-set size exceeds number of genes")
+    out = np.empty(n_draws)
+    done = 0
+    while done < n_draws:
+        m = min(chunk, n_draws - done)
+        keys = rng.random((m, n))
+        idx = np.argpartition(keys, size - 1, axis=1)[:, :size]
+        out[done:done + m] = values[idx].mean(axis=1)
+        done += m
+    return out
+
+
 def bh_fdr(p: Sequence[float]) -> np.ndarray:
     """Benjamini-Hochberg adjusted p-values (monotone)."""
     p = np.asarray(p, dtype=float)
@@ -134,12 +153,16 @@ def enrichment_with_nulls(
     r_obs = gene_scores(expr, y, method).to_numpy()
     score = category_statistic(r_obs, M, statistic)
 
-    # random-gene null: for each category, resample size-matched gene sets
+    # random-gene null: size-matched random gene sets (cached per size, since
+    # thousands of GO categories share sizes)
     g_for_null = np.abs(r_obs) if statistic == "mean_abs" else r_obs
     p_gene = np.empty(len(names))
+    cache: Dict[int, np.ndarray] = {}
     for i, s in enumerate(sizes):
-        draws = rng.choice(g_for_null, size=(n_gene_null, int(s)), replace=False if s <= len(genes) else True).mean(axis=1) \
-            if n_gene_null * s <= 5_000_000 else np.array([rng.choice(g_for_null, int(s), replace=False).mean() for _ in range(n_gene_null)])
+        s = int(s)
+        if s not in cache:
+            cache[s] = _random_set_means(g_for_null, s, n_gene_null, rng)
+        draws = cache[s]
         p_gene[i] = (np.sum(np.abs(draws) >= abs(score[i])) + 1) / (n_gene_null + 1)
     out = pd.DataFrame({"category": names, "size": sizes, "score": score, "p_gene": p_gene, "q_gene": bh_fdr(p_gene)})
 

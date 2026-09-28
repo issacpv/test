@@ -1,0 +1,16 @@
+# Core (used by src/motion_causal and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # ABIDE (PCP) anonymous HTTPS downloads
+boto3>=1.34             # HCP S3 bucket (credentials from ConnectomeDB)
+
+# Optional
+# nibabel>=5.2          # CIFTI node time series
+# nilearn>=0.10         # parcellations / connectivity utilities
+# linearmodels>=6.0     # IV cross-check

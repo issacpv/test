@@ -196,12 +196,15 @@ def hemisphere_labels(points_um: np.ndarray, soma_xyz: np.ndarray, midline_um: f
 def per_neuron_target_vector(tree: SWCTree, annotation: np.ndarray, resolution_um: float,
                              ancestor_map: Mapping[int, Sequence[int]], summary_ids: Sequence[int],
                              acronyms: Mapping[int, str], weight: str = "length", split_hemisphere: bool = True,
-                             exclude_soma_structure: bool = False) -> pd.Series:
+                             exclude_soma_structure: bool = False, midline_um: Optional[float] = None) -> pd.Series:
     """Fraction of axon (length or terminals) per target summary structure (optionally x hemisphere).
 
     Index labels are ``"<acronym>_<ipsi|contra>"`` (matching ``allen_connectivity.projection_matrix``)
-    or just ``"<acronym>"`` when ``split_hemisphere`` is False.
+    or just ``"<acronym>"`` when ``split_hemisphere`` is False. The left-right midline defaults to
+    half the annotation's z extent (5700 µm for the 25 µm CCFv3 volume).
     """
+    if midline_um is None:
+        midline_um = annotation.shape[2] * resolution_um / 2.0
     if weight == "length":
         pts, w = axon_segments(tree)
     elif weight == "terminals":
@@ -216,7 +219,7 @@ def per_neuron_target_vector(tree: SWCTree, annotation: np.ndarray, resolution_u
     soma = tree.soma_xyz()
     labels = np.array([acronyms.get(int(s), "") for s in summ], dtype=object)
     if split_hemisphere:
-        hemi = hemisphere_labels(pts, soma)
+        hemi = hemisphere_labels(pts, soma, midline_um=midline_um)
         labels = np.array([f"{a}_{h}" if a else "" for a, h in zip(labels, hemi)], dtype=object)
     keep = labels != ""
     if exclude_soma_structure:

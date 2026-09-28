@@ -202,7 +202,14 @@ def test_circular_vs_cross_validated_peak_effect_under_null():
     assert d_circ > 0.5  # max over 500 null features is large at n=24
     assert abs(d_cv) < 0.3  # held-out estimate is close to zero
     res = effects.split_half_peak_inflation(betas, rng=rng, n_splits=20)
-    assert res.ratio > 2
+    assert res.d_circular > 0.5 and abs(res.d_cv) < 0.3
+    assert res.ratio > 2 or res.ratio == float("inf")  # unbounded when the held-out effect is <= 0
+
+    # planted effect: the true feature should be found and the ratio should be modest but > 1
+    betas[:, :5] += 0.9
+    res2 = effects.split_half_peak_inflation(betas, rng=rng, n_splits=20)
+    assert res2.d_cv > 0.4 and res2.ratio > 1.0
+    assert effects.cross_validated_peak_effect(betas, n_folds=4, rng=rng) > 0.4
 
 
 def test_json_roundtrip_of_mle_result():

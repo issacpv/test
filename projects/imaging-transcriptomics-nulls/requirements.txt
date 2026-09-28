@@ -1,0 +1,20 @@
+# Core numerics / stats (used by src/ and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+
+# Atlas / map access (optional imports in src/, needed for real data)
+abagen>=0.1.4            # Allen Human Brain Atlas processing
+neuromaps>=0.0.5         # HCP S1200 / Margulies / other annotations, reference spin nulls
+brainsmash>=0.11         # reference variogram-matched surrogates
+nibabel>=5.2             # CIFTI / GIFTI IO
+netneurotools>=0.2.3     # Schaefer fsLR parcellations, spin utilities
+nilearn>=0.10            # Schaefer volumetric atlases
+requests>=2.31           # gene-ontology / gene2go downloads
+pyarrow>=15              # parquet caches
+
+# Optional for gene-set curation
+# goatools>=1.4
+
+# Testing
+pytest>=8.0
