@@ -1,0 +1,20 @@
+# Core (used by src/fm_clinical_val and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+statsmodels>=0.14
+scikit-learn>=1.4
+nibabel>=5.2
+pytest>=7.4
+
+# Data access (scripts/download_data.py)
+requests>=2.31
+# openneuro-py>=2024.2
+# boto3>=1.34
+
+# Model adapters (optional; install per model README)
+# torch>=2.2
+# monai>=1.3
+# nnunetv2>=2.4
+# SynthSeg / FastSurfer via FreeSurfer >= 7.3 or their containers
+# MRIQC container for IQMs: nipreps/mriqc:24.0.2

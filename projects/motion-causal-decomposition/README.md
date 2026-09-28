@@ -98,6 +98,40 @@ Follow-ups: extend to task fMRI activation-behaviour maps; to structural connect
 - [ ] Edge-level maps (RQ4), robustness values (RQ6), specification curves.
 - [ ] Package release with a "decomposition table" API; write-up.
 
+## Cohort definitions and key variables
+
+| Cohort | Definition | Used for |
+|---|---|---|
+| HCP primary | S1200 subjects with all four resting runs (≥ 1,000 frames after scrubbing at FD 0.2 mm per run), NIH Toolbox scores, no MRI QC issue flag | RQ1-RQ4, RQ6 |
+| HCP negative-control | subset with usable diffusion `eddy` movement logs (control exposure) | RQ3 |
+| HCP retest | 45 subjects with a second visit | reliability of motion measures (errors-in-variables) |
+| ABIDE case-control | ASD and typical controls, age 6-30, `func_mean_fd` available, sites with ≥ 20 subjects | RQ5 |
+| ABCD | baseline + 2-year rest with ≥ 2 usable runs per session, site and scanner recorded | replication, high-motion regime |
+
+Run-level variables: `subject`, `run`, `session`, `run_order` (instrument), `mean_fd`, `frac_fd_gt_0.2`, `fc_vector` (edges), optional `drowsiness_flag`; subject-level: phenotype (`CogFluidComp_Unadj`, `CogTotalComp_Unadj`, `ProcSpeed_Unadj`, ABIDE `ADOS_TOTAL`/`SRS_RAW_TOTAL`/`FIQ`, ABCD NIH Toolbox composite, CBCL attention), `control_motion` (dMRI RMS movement; other-day rest FD), `family_id`, `site`, age, sex.
+
+## Starter code map
+
+| Module / function | What it does |
+|---|---|
+| `motion_causal.fc_features.framewise_displacement`, `load_hcp_movement_regressors`, `motion_summary` | Power FD from rigid-body parameters (HCP file layout), run summaries |
+| `fc_features.fisher_z_fc`, `vectorize_upper`, `edge_distances` | FC features and edge distances (for the distance-dependence check) |
+| `motion_causal.predict.crossval_run_predictions` | family-grouped nested CV (ridge or CPM) returning *per-run* out-of-fold predictions and Haufe patterns |
+| `motion_causal.decomposition.artifact_sensitivity` | within-subject dŷ/dm with fixed effects or 2SLS (run order as instrument; first-stage F) |
+| `decomposition.decompose_association` | Cov(ŷ, y) → artifact-mediated, trait-confounded, clean components and shares |
+| `decomposition.negative_control_exposure`, `robustness_value`, `e_value` | negative-control contrast and sensitivity bounds |
+| `motion_causal.nulls.motion_matched_permutation`, `permutation_pvalue`, `bootstrap_ci` | motion-only null, p-values, family-block bootstrap |
+| `motion_causal.simulate.simulate_motion_cohort` | generative model with known artifact and trait paths |
+| `tests/test_motion_causal.py` | FD arithmetic, FE/IV recovery of a known sensitivity, decomposition against ground truth, zero-artifact null |
+
+Quick start:
+
+```
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests
+python scripts/download_data.py abide --out data/abide --sample 20   # open data, no credentials
+```
+
 ## Ethics / data-use notes
 
 - HCP: cite the WU-Minn HCP consortium; restricted data (family IDs, exact ages) may not be redistributed or combined with public identifiers.

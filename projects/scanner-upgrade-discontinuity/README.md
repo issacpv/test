@@ -102,6 +102,38 @@ Follow-ups: apply the same design to PET (PiB → AV45 tracer switch in OASIS-3 
 - [ ] ADNI replication (RQ6) with calendar RDiT and dual-field-strength subset.
 - [ ] Optional image-level arm; release offsets table and package; write-up.
 
+## Cohort definitions and key variables
+
+| Cohort | Definition | Used for |
+|---|---|---|
+| OASIS-3 transitioned | ≥ 2 sessions on scanner A followed by ≥ 2 on scanner B (first A→B transition per subject); clinical visit within ±180 d of each session | RDiT primary (RQ1-RQ3), counterfactual trajectories |
+| OASIS-3 single-scanner controls | all sessions on one scanner; 1:1 matched to transitioned subjects on age at first session (±3 y), sex, follow-up length (±1 y), baseline CDR | slope-bias benchmark (RQ3b) |
+| OASIS-3 traveling pairs | two sessions ≤ 14 d apart on different scanners (the 69 Trio/mMR participants) | paired ground truth (RQ4) |
+| ADNI 1.5T → 3T | ADNI-1 participants with ≥ 2 1.5T sessions who continued into ADNI-GO/2 with ≥ 2 3T sessions | calendar-time RDiT (RQ6) |
+| ADNI dual-field-strength | same visit scanned at 1.5T and 3T (ADNI-1 3T substudy) | paired ground truth (RQ4, RQ6) |
+
+Session-level variables: `session_id`, `subject`, `day` (days from entry), `years`, `scanner`, `t_rel` (years to the subject's cutoff), `post`; FreeSurfer features (`aseg.stats`: `Left/Right-Hippocampus`, `Left/Right-Amygdala`, `Left/Right-Lateral-Ventricle`, `TotalGrayVol`, `CortexVol`, `EstimatedTotalIntraCranialVol`; `?h.aparc.stats`: lobar mean thickness), expressed as % of eTIV and as % of the subject's first session; covariates `age`, `sex`, `cdr`, `sumbox`, `mmse`, `apoe4`; outcome for clinical validity: first CDR increase (0 → ≥ 0.5, or CDR-SB +1).
+
+## Starter code map
+
+| Module / function | What it does |
+|---|---|
+| `scanner_rd.sessions.parse_oasis_id`, `build_session_table` | OASIS-3 IDs → subject/day/scanner table |
+| `sessions.find_transitions`, `add_event_time`, `find_paired_sessions` | detect scanner changes, build the event-time running variable, recover traveling-subject pairs |
+| `sessions.add_calendar_running_variable`, `infer_site_cutoffs` | ADNI-style calendar cutoffs per site |
+| `scanner_rd.rdit.local_linear_rd` | kernel-weighted local-linear RD with subject fixed effects and cluster-robust SEs; `select_bandwidth_cv`, `placebo_cutoffs`, `counterfactual_trajectory`, `aging_equivalent_years` |
+| `scanner_rd.harmonize.ComBat`, `LongitudinalComBatLite`, `rd_anchored_correction`, `batch_effect_size` | harmonization arms with fit/transform APIs and an audit metric |
+| `scanner_rd.simulate.simulate_cohort` | longitudinal cohort with known jump/scale/slope change |
+| `tests/test_scanner_rd.py` | recovers a known jump, null and placebo behaviour, ComBat/longitudinal ComBat/RD-anchor checks |
+
+Quick start:
+
+```
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests
+PYTHONPATH=src python -c "from scanner_rd import *; df=simulate_cohort(jump=80).dropna(subset=['t_rel']); r=local_linear_rd(df,'y',bandwidth=2.5); print(r.jump, r.jump_ci95, aging_equivalent_years(r.jump, r.slope_pre))"
+```
+
 ## Ethics / data-use notes
 
 - OASIS-3/4 and ADNI are governed by their DUAs: no redistribution, no attempt at re-identification, acknowledgement text as required by each. Derived tables that could identify participants (session-level dates) are never committed; only aggregate offset tables are released.

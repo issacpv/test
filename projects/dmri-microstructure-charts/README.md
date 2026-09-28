@@ -102,6 +102,38 @@ Follow-ups: longitudinal validation with HCP-A follow-ups; extension to grey-mat
 - [ ] Clinical deviation validation on OpenNeuro multi-shell datasets (RQ5).
 - [ ] Release chart files and leaderboard; write-up.
 
+## Reference sample, metrics and tracts
+
+| Cohort | Inclusion | Role |
+|---|---|---|
+| HCP-YA | dMRI QC pass, no neurological/psychiatric history flag, 22-37 y | reference core; protocol emulation; retest (n = 45) |
+| HCP-Aging / HCP-Development | typical development/aging per HCP-Lifespan screening, 5-21 y and 36-100+ y | reference tails; age of peak |
+| Cam-CAN | cognitively healthy (MMSE ≥ 25), 18-88 y | independent-protocol reference; site term |
+| IXI | healthy volunteers, 20-86 y, single shell | single-shell calibration (RQ6) |
+| OpenNeuro multi-shell clinical datasets | discovered by `openneuro-discover`; groups with a patient label | deviation validation (RQ5) |
+
+Metrics per tract (JHU-ICBM skeleton, ENIGMA-DTI protocol; TractSeg bundles as the second scheme): DTI `FA, MD, AD, RD`; DKI `MK, AK, RK` (+ `KFA`); NODDI `ICVF (NDI), ODI, ISOVF`; optional SMT `intra-neurite fraction`, fixel `FD, FC, FDC`. Model covariates: `age`, `sex`, `site/cohort`, `eddy_motion` (sensitivity). Primary tracts: cingulum (cingulate), fornix, genu and splenium of the corpus callosum, corticospinal tract, superior longitudinal fasciculus, uncinate.
+
+## Starter code map
+
+| Module / function | What it does |
+|---|---|
+| `dmri_charts.shells.read_bvals_bvecs`, `identify_shells`, `protocol_summary` | gradient tables, shell detection, protocol description |
+| `shells.subsample_protocol`, `SCHEMES` | emulate Cam-CAN / UKB / single-shell schemes from HCP data (farthest-point direction subsets) |
+| `dmri_charts.models.fit_dti`, `fit_dki` | weighted linear DTI and DKI fits with FA/MD/AD/RD and MK/AK/RK |
+| `models.simulate_multicompartment_signal`, `fibonacci_sphere` | stick+zeppelin+ball signals with Rician noise for validation |
+| `dmri_charts.normative.NormativeModel` | spline location-scale model: `fit`, `predict`, `zscore`, `centiles`; `age_of_peak`, `bootstrap_age_of_peak`, `simulate_lifespan_dataset` |
+| `dmri_charts.compare.age_explained_variance`, `icc_2_1`, `protocol_transfer_bias`, `deviation_auc`, `rank_models` | the four chart-quality criteria and the leaderboard |
+| `tests/test_dmri_charts.py` | shell tools, DTI recovery of a known tensor, DKI kurtosis sign, normative calibration and age of peak, comparison metrics |
+
+Quick start:
+
+```
+pip install -r requirements.txt
+PYTHONPATH=src python -m pytest -q tests
+python scripts/download_data.py openneuro-discover --out data/openneuro --max-datasets 100   # open, no credentials
+```
+
 ## Ethics / data-use notes
 
 - HCP data-use terms (open access and, for HCP-A/D, NDA); Cam-CAN DUA; IXI CC BY-SA 3.0; OpenNeuro CC0 — cite each dataset's DOI.
