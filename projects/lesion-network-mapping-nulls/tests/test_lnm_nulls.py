@@ -102,7 +102,7 @@ def test_bias_atlas_and_leakage(brain):
     null_maps = lnm.lesion_network_maps(pool, brain.fc_vp)
     mean, sd = nulls.bias_atlas(null_maps)
     assert mean.shape == (brain.n_parcels,) and np.all(sd >= 0)
-    obs = mean + 0.05 * rng.standard_normal(mean.size)
+    obs = mean + 0.2 * mean.std() * rng.standard_normal(mean.size)   # noise = 20 % of the map's spread
     assert nulls.prior_leakage_r2(obs, mean) > 0.8
     assert nulls.prior_leakage_r2(rng.standard_normal(mean.size), mean) < 0.3
 
