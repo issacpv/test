@@ -113,9 +113,9 @@ class MyelinatedAxon:
         self.parent = np.arange(-1, self.n - 1) if parent is None else np.asarray(parent, dtype=int)
         d_cm = self.p.axon_diam_ratio * self.D * 1e-4
         L_node = self.p.node_length_um * 1e-4
-        area = np.pi * d_cm * L_node                                # cm^2
-        self.C = self.p.c_m * area                                   # uF per node
-        self.area = area
+        area = np.pi * d_cm * L_node                                # cm^2 (identical nodes)
+        self.area = np.full(self.n, area)
+        self.C = self.p.c_m * self.area                              # uF per node
         # axial conductances (mS) between node i and parent
         rows, cols, vals = [], [], []
         for i in range(self.n):

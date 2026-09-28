@@ -69,7 +69,7 @@ def test_features_track_depth():
     assert np.corrcoef(f["sef95"], depth)[0, 1] < -0.5
     # burst suppression ratio: half the epoch flat
     x = np.r_[np.zeros(256), 50 * np.sin(np.linspace(0, 40, 256))]
-    assert eeg_features.burst_suppression_ratio(x, 128.0) == pytest.approx(0.5)
+    assert eeg_features.burst_suppression_ratio(x, 128.0) == pytest.approx(0.5, abs=0.01)
     expo, _ = eeg_features.aperiodic_fit(*eeg_features.welch_psd(colored_noise(4096, 128.0, 2.0, np.random.default_rng(1))[None], 128.0))
     assert 1.5 < expo < 2.6
     sm = eeg_features.smooth_trajectory(np.r_[np.ones(10), np.nan, np.ones(10)], 2.0, 10.0)

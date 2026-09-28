@@ -19,9 +19,16 @@ def angle_to_hours(theta: np.ndarray) -> np.ndarray:
     return (np.asarray(theta, float) % (2 * np.pi)) * HOURS / (2 * np.pi)
 
 
-def clock_hour(times: pd.Series) -> pd.Series:
-    """Fractional hour of day from a datetime Series."""
-    t = pd.to_datetime(times)
+def as_datetime_series(times) -> pd.Series:
+    """Coerce a Series / DatetimeIndex / array of timestamps to a datetime Series (index preserved for Series)."""
+    if isinstance(times, pd.Series):
+        return pd.to_datetime(times)
+    return pd.Series(pd.to_datetime(times))
+
+
+def clock_hour(times) -> pd.Series:
+    """Fractional hour of day from datetimes (Series, DatetimeIndex or array)."""
+    t = as_datetime_series(times)
     return t.dt.hour + t.dt.minute / 60.0 + t.dt.second / 3600.0
 
 
@@ -73,9 +80,12 @@ def shift_change_locking(hours: np.ndarray, shift_hours: Sequence[float] = (7.0,
                          n_perm: int = 2000, seed: int = 0) -> Dict[str, float]:
     """Excess of events within +/- half_width_h of shift changes, relative to uniform expectation.
 
-    Returns the observed fraction, the expected fraction under uniformity, their ratio, and a
-    permutation p-value obtained by rotating all events by random offsets (which preserves
-    the shape of the distribution but destroys its phase relative to the shift times).
+    Returns the observed fraction, the expected fraction under uniformity, their ratio and two
+    p-values: ``p_binomial`` against a uniform clock (events independent, rate constant) and
+    ``p_rotation`` from rotating all events by random offsets, which preserves the shape of
+    the distribution and only destroys its phase relative to the shift times. Note that the
+    rotation null cannot distinguish any 12-h-periodic structure from locking to shift
+    changes 12 h apart, so it is the conservative one; report both.
     """
     rng = np.random.default_rng(seed)
     h = np.asarray(hours, float) % HOURS
@@ -87,9 +97,12 @@ def shift_change_locking(hours: np.ndarray, shift_hours: Sequence[float] = (7.0,
 
     obs = frac(h)
     expected = min(1.0, len(shift_hours) * 2 * half_width_h / HOURS)
+    k = int(round(obs * n))
+    p_binom = float(stats.binomtest(k, n, expected, alternative="greater").pvalue) if n > 0 else float("nan")
     null = np.array([frac((h + rng.uniform(0, 24)) % HOURS) for _ in range(n_perm)])
-    p = float((np.sum(null >= obs) + 1) / (n_perm + 1))
-    return {"n": int(n), "observed_frac": obs, "expected_frac": expected, "ratio": obs / expected, "p_perm": p}
+    p_rot = float((np.sum(null >= obs) + 1) / (n_perm + 1))
+    return {"n": int(n), "observed_frac": obs, "expected_frac": expected, "ratio": obs / expected,
+            "p_binomial": p_binom, "p_rotation": p_rot}
 
 
 def circular_difference_hours(a: np.ndarray, b: np.ndarray) -> np.ndarray:

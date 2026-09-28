@@ -1,0 +1,63 @@
+# Data and derived artefacts - never commit these
+data/
+outputs/
+results/
+derivatives/
+cache/
+figures/
+
+# Medical imaging formats
+*.dcm
+*.DCM
+*.nii
+*.nii.gz
+*.mhd
+*.raw
+*.mha
+*.nrrd
+*.dicom
+*.tcia
+*.zip
+*.tar
+*.tar.gz
+
+# Serialized arrays, models and tables of derived data
+*.npy
+*.npz
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.parquet
+*.feather
+
+# pylidc
+.pylidcrc
+*.sqlite
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 FLUID_PATTERNS: Dict[str, str] = {
-    "crystalloid": r"^(nacl 0\.9%|0\.9% sodium chloride|lr$|lactated ringers?|plasma-?lyte|normal saline)",
+    "crystalloid": r"^(?:nacl 0\.9%|0\.9% sodium chloride|lr$|lactated ringers?|plasma-?lyte|normal saline)",
     "colloid": r"albumin|hetastarch|hespan|voluven|dextran",
     "blood": r"packed red blood|prbc|fresh frozen plasma|ffp|platelets|cryoprecipitate",
 }

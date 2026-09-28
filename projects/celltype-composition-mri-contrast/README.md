@@ -97,6 +97,70 @@ No credentialed data are involved.
 - [ ] Cross-atlas replication (H4); voxel-level models (H5).
 - [ ] Preprint, aligned density-contrast table and code released.
 
+## Quick start
+
+```bash
+cd projects/celltype-composition-mri-contrast
+pip install -r requirements.txt
+python scripts/download_data.py --ccf --structures --resolution 25   # annotation + ontology (plain HTTP)
+python scripts/download_data.py --abc --sample                       # MERFISH cell metadata (needs abc-atlas-access)
+python scripts/download_data.py --dsurqe                             # ex vivo template + labels
+PYTHONPATH=src pytest -q                                             # densities, contrasts, regression, spatial nulls
+```
+
+Regional model with spatial nulls once the tables exist:
+
+```python
+import numpy as np, pandas as pd, nrrd
+from celltype_mri.abc_atlas import assign_structures, sampled_volume_mm3, densities_by_structure, log_density
+from celltype_mri.mri import load_volume, contrast_table, structure_centroids, align_tables
+from celltype_mri.regress import fit_cv, relative_importance
+from celltype_mri.spatial_nulls import distance_weights, spatial_pvalue
+
+ann, _ = nrrd.read("data/ccf/annotation_25.nrrd")
+cells = pd.read_parquet("data/abc_atlas/tables/cells.parquet")
+cells["structure_id"] = assign_structures(cells[["x_ccf", "y_ccf", "z_ccf"]].to_numpy(), ann, 25.0)
+vol = sampled_volume_mm3(ann, 25.0)
+dens = log_density(densities_by_structure(cells, "structure_id", "class", vol, min_cells=200))
+contr = contrast_table({"t2w": load_volume("data/mri/dsurqe/t2w_ccf25.nii.gz")}, ann, dens.index)
+X, Y = align_tables(dens, contr)
+res = fit_cv(X, Y["t2w"], "ridge", cv="loo")
+imp = relative_importance(X, Y["t2w"])
+W = distance_weights(structure_centroids(ann, X.index, 25.0).to_numpy(), k=10)
+print(res.r2_cv, imp.sort_values(ascending=False).head())
+print(spatial_pvalue(lambda y: fit_cv(X, pd.Series(y, index=X.index)).r2_cv, Y["t2w"].to_numpy(), W, n_surr=500))
+```
+
+## Pre-registered analysis table
+
+| # | Unit of analysis | Primary outcome | Estimand / test | Decision rule | Confirmatory / exploratory |
+|---|---|---|---|---|---|
+| H1 | CCF structure (~300) | T1w:T2w, MT, FA | LMG relative importance of class densities; MSR spatial p | oligodendrocyte share > 40%, p_spatial < 0.01 | confirmatory |
+| H2 | CCF structure | MD, neurite-density index | ridge leave-region-out R^2; partial R^2 for neuron density | neuron density partial R^2 > glial; p_spatial < 0.01 | confirmatory |
+| H3 | CCF structure | T2*/QSM-like vs. T1w:T2w | nested CV comparison: densities vs. densities + gene programs | delta R^2 > 0.10 for T2*, not for T1w:T2w | confirmatory |
+| H4 | atlas (ex vivo vs. in vivo) | importance ranking | Kendall's tau, Lin's CCC | tau > 0.6 | confirmatory |
+| H5 | voxel (50 um) vs. structure | R^2 | partial-volume-adjusted comparison | structure R^2 > voxel R^2; gap smaller for myelin-driven contrasts | confirmatory |
+| S1 | structure | subclass-level importance | BH within contrast | descriptive | exploratory |
+
+Cell classes entering the primary model (class level of the ABC taxonomy, aggregated to <= 12 predictors): glutamatergic neurons (cortical + subcortical grouped), GABAergic neurons, other neurons (e.g. dopaminergic/serotonergic grouped), oligodendrocytes, OPCs, astrocytes/ependymal, microglia/immune, vascular.
+
+## Key references
+
+- Yao Z et al. (2023) A high-resolution transcriptomic and spatial atlas of cell types in the whole mouse brain. *Nature*.
+- Zhang M et al. (2023) Molecularly defined and spatially resolved cell atlas of the whole mouse brain. *Nature*.
+- Wang Q et al. (2020) The Allen Mouse Brain Common Coordinate Framework: a 3D reference atlas. *Cell*.
+- Dorr AE, Lerch JP, Spring S, Kabani N, Henkelman RM (2008) High resolution three-dimensional brain atlas using an average magnetic resonance image of 40 adult C57Bl/6J mice. *NeuroImage*.
+- Ullmann JFP, Watson C, Janke AL, Kurniawan ND, Reutens DC (2013) A segmentation protocol and MRI atlas of the C57BL/6J mouse neocortex. *NeuroImage* (AMBMC).
+- Wu D et al. (2013) In vivo high-resolution diffusion tensor imaging of the mouse brain. *NeuroImage*.
+- Fulcher BD, Murray JD, Zerbi V, Wang X-J (2019) Multimodal gradients across mouse cortex. *PNAS*.
+- Ero C, Gewaltig M-O, Keller D, Markram H (2018) A cell atlas for the mouse brain. *Front Neuroinform*.
+- Liang Z et al. (2022) Virtual mouse brain histology from multi-contrast MRI via deep learning. *eLife*.
+- "High-resolution MRI guided whole mouse brain cell type atlas using deep learning" (2025) *bioRxiv* (inverse-direction deep-learning model; motivates H5).
+- Burt JB, Helmer M, Shinn M, Anticevic A, Murray JD (2020) Generative modeling of brain maps with spatial autocorrelation. *NeuroImage*.
+- Markello RD, Misic B (2021) Comparing spatial null models for brain maps. *NeuroImage*.
+- Wagner HH, Dray S (2015) Generating spatially constrained null models for irregularly spaced data using Moran spectral randomization methods. *Methods Ecol Evol*.
+- Tustison NJ et al. (2025) The ANTsX ecosystem for mapping the mouse brain. *Nat Commun*.
+
 ## Ethics / data-use notes
 
 - All data are open animal atlases; cite the ABC Atlas papers, the Allen Institute terms of use, and each MRI atlas paper.

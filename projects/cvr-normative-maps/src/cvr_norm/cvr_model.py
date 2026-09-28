@@ -89,19 +89,47 @@ def fit_cvr(bold: np.ndarray, regressor: np.ndarray, reg_fs: float, tr: float, l
                      lags=lags, r2_by_lag=r2_by_lag)
 
 
-def r2_floor_from_phase_randomization(bold: np.ndarray, regressor: np.ndarray, reg_fs: float, tr: float,
-                                      n_null: int = 20, quantile: float = 0.95,
-                                      rng: np.random.Generator | None = None, **fit_kwargs) -> float:
-    """Null R² floor: refit with phase-randomized regressors, return the ``quantile`` of max-over-lag R²."""
-    rng = np.random.default_rng() if rng is None else rng
-    vals = []
-    for _ in range(n_null):
+def null_regressor(regressor: np.ndarray, reg_fs: float, rng: np.random.Generator, method: str = "random_onsets",
+                   onsets: np.ndarray | None = None, durations: np.ndarray | None = None,
+                   min_gap: float = 5.0) -> np.ndarray:
+    """Build one null regressor.
+
+    ``random_onsets`` (recommended for block designs): the same number/duration of hold blocks placed at
+    random, non-overlapping onsets and convolved with the HRF. ``phase``: Fourier phase randomization,
+    which preserves the amplitude spectrum; for *periodic* block designs the dominant block frequency is
+    kept and, combined with the lag search, this null is far too permissive (documented caveat).
+    """
+    n = regressor.size
+    if method == "phase":
         F = np.fft.rfft(regressor - regressor.mean())
         phases = np.exp(1j * rng.uniform(0, 2 * np.pi, F.size))
         phases[0] = 1.0
-        surr = np.fft.irfft(np.abs(F) * phases, n=regressor.size) + regressor.mean()
-        res = fit_cvr(bold, surr, reg_fs, tr, **fit_kwargs)
-        vals.append(res.r2)
+        return np.fft.irfft(np.abs(F) * phases, n=n) + regressor.mean()
+    if method != "random_onsets":
+        raise ValueError(method)
+    if onsets is None or durations is None:
+        raise ValueError("random_onsets needs the real onsets and durations")
+    total = n / reg_fs
+    durs = np.asarray(durations, float)
+    for _ in range(1000):
+        cand = np.sort(rng.uniform(0, total - durs.max(), durs.size))
+        if np.all(np.diff(cand) >= durs[:-1] + min_gap):
+            break
+    x = physio.boxcar(n, reg_fs, cand, durs)
+    x = physio.convolve_hrf(x, reg_fs)
+    return x / (x.max() + 1e-12)
+
+
+def r2_floor(bold: np.ndarray, regressor: np.ndarray, reg_fs: float, tr: float, n_null: int = 20,
+             quantile: float = 0.95, rng: np.random.Generator | None = None, method: str = "random_onsets",
+             onsets: np.ndarray | None = None, durations: np.ndarray | None = None, **fit_kwargs) -> float:
+    """Empirical R² floor: refit with null regressors and return the ``quantile`` of max-over-lag R²
+    across voxels and null realisations. Voxels below the floor should not contribute delay estimates."""
+    rng = np.random.default_rng() if rng is None else rng
+    vals = []
+    for _ in range(n_null):
+        surr = null_regressor(regressor, reg_fs, rng, method, onsets, durations)
+        vals.append(fit_cvr(bold, surr, reg_fs, tr, **fit_kwargs).r2)
     return float(np.quantile(np.concatenate(vals), quantile))
 
 

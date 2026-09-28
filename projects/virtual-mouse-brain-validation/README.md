@@ -96,6 +96,71 @@ No credentialed data are involved.
 - [ ] Leave-one-site-out generalisation (H1); cross-modality (H2).
 - [ ] Preprint, benchmark table, code release.
 
+## Quick start
+
+```bash
+cd projects/virtual-mouse-brain-validation
+pip install -r requirements.txt
+python scripts/download_data.py --ccf --resolution 100     # CCF annotation (plain HTTP)
+python scripts/download_data.py --allen --sample           # connectome matrices (needs allensdk)
+python scripts/download_data.py --openneuro --sample       # one subject of ds001720 (needs openneuro-py)
+PYTHONPATH=src pytest -q                                   # analytic-vs-simulated FC, Hopf, nulls, parcellation
+```
+
+Fast multiverse pass with the linear model (analytic FC, no simulation):
+
+```python
+import numpy as np
+from vmb_validation.connectome import load_npz_connectome, bilateral, apply, multiverse, spectral_normalise
+from vmb_validation.models import linear_fc, max_stable_coupling, coupling_sweep
+from vmb_validation.fc_metrics import fc_similarity, fit_gain_over_null
+from vmb_validation.nulls import distance_preserving_permutation
+
+ipsi = load_npz_connectome("data/allen/connectome_ncd_ipsi.npz")["matrix"]
+contra = load_npz_connectome("data/allen/connectome_ncd_contra.npz")["matrix"]
+fc_emp = np.load("data/parcellated/fc_site01_mean.npy")          # empirical FC on the same region list
+coords = np.load("data/allen/centroids_bilateral.npy")
+rng = np.random.default_rng(0)
+for c in multiverse():
+    W = spectral_normalise(apply(bilateral(ipsi, contra), c))
+    gs = np.linspace(0.05, 0.95, 19) * max_stable_coupling(W)
+    obs = coupling_sweep(W, fc_emp, gs, fc_similarity, model="linear")
+    null = [coupling_sweep(distance_preserving_permutation(W, coords, rng), fc_emp, gs, fc_similarity)["best_score"]
+            for _ in range(50)]
+    print(c.name(), obs["best_G"], obs["best_score"], fit_gain_over_null(obs["best_score"], null))
+```
+
+## Pre-registered analysis table
+
+| # | Unit of analysis | Primary outcome | Estimand / test | Decision rule | Confirmatory / exploratory |
+|---|---|---|---|---|---|
+| H1 | site (17) | FC fit r with coupling selected on other sites | leave-one-site-out; mixed model of fit loss on tSNR | loss < 0.05 in >= 12 sites | confirmatory |
+| H2 | session (widefield) x site (fMRI), dorsal regions | FC fit r across modalities | fit of widefield-tuned model on BOLD vs. spatial null; Kendall's tau of connectome ranking | fit > null (p < 0.01); tau > 0.5 | confirmatory |
+| H3 | connectome construction | fit gain over distance-preserving null | 500 null connectomes simulated | null explains >= 30% of variance explained; gain largest for homotopic edges | confirmatory |
+| H4 | multiverse cell (construction x model) | FC fit r | variance components (ANOVA) | construction share > model share | confirmatory |
+| H5 | session | FCD KS distance | linear vs. Hopf vs. Wilson-Cowan | only nonlinear models reach KS < 0.2 | confirmatory |
+| S1 | site | optimal coupling vs. anaesthesia protocol | descriptive | - | exploratory |
+
+## Key references
+
+- Melozzi F, Woodman MM, Jirsa VK, Bernard C (2017) The Virtual Mouse Brain: a computational neuroinformatics platform to study whole mouse brain dynamics. *eNeuro*.
+- Melozzi F et al. (2019) Individual structural features constrain the mouse functional connectome. *PNAS*.
+- Sanz-Leon P, Knock SA, Spiegler A, Jirsa VK (2015) Mathematical framework for large-scale brain network modeling in The Virtual Brain. *NeuroImage*.
+- Oh SW et al. (2014) A mesoscale connectome of the mouse brain. *Nature*.
+- Knox JE et al. (2019) High-resolution data-driven model of the mouse connectome. *Network Neurosci*.
+- Coletta L et al. (2020) Network structure of the mouse brain connectome with voxel resolution. *Sci Adv*.
+- Harris JA et al. (2019) Hierarchical organization of cortical and thalamic connectivity. *Nature*.
+- Grandjean J et al. (2020) Common functional networks in the mouse brain revealed by multi-centre resting-state fMRI analysis. *NeuroImage* (OpenNeuro ds001720).
+- Grandjean J et al. (2023) A consensus protocol for functional connectivity analysis in the rat brain. *Nat Neurosci*.
+- Desrosiers-Gregoire G et al. (2024) A standardized image processing and data quality platform for rodent fMRI. *Nat Commun* (RABIES).
+- Gutierrez-Barragan D et al. (2022) Unique spatiotemporal fMRI dynamics in the awake mouse brain. *Curr Biol*.
+- Musall S, Kaufman MT, Juavinett AL, Gluf S, Churchland AK (2019) Single-trial neural dynamics are dominated by richly varied movements. *Nat Neurosci*.
+- MacDowell CJ, Buschman TJ (2020) Low-dimensional spatiotemporal dynamics underlie cortex-wide neural activity. *Curr Biol*.
+- Stafford JM et al. (2014) Large-scale topology and the default mode network in the mouse connectome. *PNAS*.
+- Sethi SS, Zerbi V, Wenderoth N, Fornito A, Fulcher BD (2017) Structural-connectome topology relates to regional BOLD signal dynamics in the mouse brain. *Chaos*.
+- Burt JB, Helmer M, Shinn M, Anticevic A, Murray JD (2020) Generative modeling of brain maps with spatial autocorrelation. *NeuroImage*.
+- Wang Q et al. (2020) The Allen Mouse Brain Common Coordinate Framework: a 3D reference atlas. *Cell*.
+
 ## Ethics / data-use notes
 
 - All animal data were collected under the original institutions' approvals; this project performs secondary analysis only.

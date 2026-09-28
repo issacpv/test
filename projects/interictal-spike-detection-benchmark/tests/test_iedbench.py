@@ -79,11 +79,15 @@ def test_envelope_and_template_detectors_find_planted_spikes():
 
 def test_morphology_features_and_criteria():
     fs = 512.0
-    X, ref, names = synthetic_record(n_spikes=5, seed=3)
+    X, ref, names = synthetic_record(n_spikes=5, seed=3, amp=10.0)
     idx = int(ref[0].t_s * fs)
     f = morphology.ifcn_features(X[0], fs, idx)
     assert 15 < f["duration_ms"] < 90
-    assert f["rel_amplitude"] > 2 and f["slow_wave"] > 0.1
+    assert f["rel_amplitude"] > 2 and f["slow_wave"] > 0.05
+    # a spike without after-going slow wave scores lower on the slow-wave feature
+    x_plain = np.zeros(int(3 * fs))
+    x_plain[int(1.5 * fs) - 30:int(1.5 * fs) + 30] += 10 * np.exp(-0.5 * (np.arange(-30, 30) / 8.7) ** 2)
+    assert morphology.ifcn_features(x_plain, fs, int(1.5 * fs))["slow_wave"] < f["slow_wave"]
     n_field, mx = morphology.spatial_field(X, fs, idx, 0)
     assert n_field >= 1 and mx > 0.5
     F = morphology.features_matrix(X, fs, [(0, idx), (2, idx)])

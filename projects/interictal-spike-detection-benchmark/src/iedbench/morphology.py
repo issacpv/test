@@ -56,10 +56,11 @@ def ifcn_features(x: np.ndarray, fs: float, idx: int) -> Dict[str, float]:
     asym = float(np.log(rise / fall))
     d2 = abs(x[idx - 1] - 2 * x[idx] + x[idx + 1]) * fs ** 2
     sharp = float(np.log(d2 / (abs(prom) + 1e-9) + 1e-9))
-    # slow after-wave: opposite polarity area 50-400 ms after the peak
+    # slow after-wave: mean opposite-polarity deflection 50-400 ms after the peak, relative to the
+    # spike prominence (an unclipped mean is unbiased under zero-mean background noise)
     a, b = idx + int(0.05 * fs), min(n, idx + int(0.4 * fs))
     seg = (x[a:b] - base) * (-pol) if b > a else np.array([0.0])
-    slow = float(np.clip(seg, 0, None).sum() / fs / (abs(prom) * 0.35 + 1e-9))
+    slow = float(np.mean(seg) / (abs(prom) + 1e-9))
     # background disruption: RMS after (0.4-1.0 s) vs before (-1.0 .. -0.1 s)
     post = x[min(n, idx + int(0.4 * fs)):min(n, idx + int(1.0 * fs))]
     pre = x[max(0, idx - int(1.0 * fs)):max(0, idx - int(0.1 * fs))]
@@ -110,7 +111,7 @@ def ifcn_criteria_flags(f: Dict[str, float], bg_dominant_period_ms: float = 100.
         "c1_sharp": f["sharpness"] > np.log(2e4),                       # steep second derivative relative to height
         "c2_duration": 20.0 <= f["duration_ms"] <= 200.0 and abs(f["duration_ms"] - bg_dominant_period_ms) > 20.0,
         "c3_asymmetry": abs(f["asymmetry"]) > np.log(1.3),
-        "c4_slow_wave": f["slow_wave"] > 0.3,
+        "c4_slow_wave": f["slow_wave"] > 0.05,
         "c5_bg_disruption": abs(f["bg_disruption"]) > np.log(1.3),
         "c6_field": f.get("field_n", 0) >= 1,
     }

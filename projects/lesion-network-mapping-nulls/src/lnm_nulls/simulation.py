@@ -166,9 +166,10 @@ def run_simulation(n_studies: int, n_patients: int, beta: float, gamma: float, n
             tallies[o.family].append(o)
     summary = {}
     for f, outs in tallies.items():
+        precisions = [o.precision for o in outs if np.isfinite(o.precision)]
         summary[f] = {
             "positive_rate": float(np.mean([o.any_significant for o in outs])),
-            "mean_precision": float(np.nanmean([o.precision for o in outs])) if outs else float("nan"),
+            "mean_precision": float(np.mean(precisions)) if precisions else float("nan"),
             "mean_recall": float(np.mean([o.recall for o in outs])),
         }
     return summary

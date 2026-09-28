@@ -1,0 +1,16 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# NWB / Allen access (not needed for the tests)
+# allensdk>=2.16
+# pynwb>=2.6
+# h5py>=3.10
+# xarray>=2024.1
+# boto3>=1.34
+# dandi>=0.60

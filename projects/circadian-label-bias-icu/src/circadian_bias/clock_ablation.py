@@ -12,13 +12,19 @@ from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from .circular import as_datetime_series
+
 CLOCK_COLUMNS = ["hour_sin", "hour_cos", "admit_hour_sin", "admit_hour_cos", "is_weekend", "is_night", "hours_since_admit"]
 
 
-def clock_features(prediction_time: pd.Series, admit_time: pd.Series, night: tuple = (19.0, 7.0)) -> pd.DataFrame:
-    """Clock features at prediction time: hour (sin/cos), admission hour (sin/cos), weekend, night, hours since admission."""
-    pt = pd.to_datetime(prediction_time)
-    at = pd.to_datetime(admit_time)
+def clock_features(prediction_time, admit_time, night: tuple = (19.0, 7.0)) -> pd.DataFrame:
+    """Clock features at prediction time: hour (sin/cos), admission hour (sin/cos), weekend, night, hours since admission.
+
+    Accepts Series, DatetimeIndex or arrays; the output index follows ``prediction_time`` when it is a Series.
+    """
+    pt = as_datetime_series(prediction_time)
+    at = as_datetime_series(admit_time)
+    at.index = pt.index
     h = pt.dt.hour + pt.dt.minute / 60.0
     ah = at.dt.hour + at.dt.minute / 60.0
     start, end = night
@@ -28,7 +34,7 @@ def clock_features(prediction_time: pd.Series, admit_time: pd.Series, night: tup
         "admit_hour_sin": np.sin(2 * np.pi * ah / 24), "admit_hour_cos": np.cos(2 * np.pi * ah / 24),
         "is_weekend": (pt.dt.dayofweek >= 5).astype(float), "is_night": is_night.astype(float),
         "hours_since_admit": (pt - at).dt.total_seconds() / 3600.0,
-    }, index=prediction_time.index)
+    }, index=pt.index)
 
 
 def default_model() -> Callable[[], object]:
@@ -41,9 +47,7 @@ def _metrics(y: np.ndarray, p: np.ndarray) -> Dict[str, float]:
     eps = 1e-6
     logit = np.log(np.clip(p, eps, 1 - eps) / np.clip(1 - p, eps, 1 - eps))
     lr = LogisticRegression(C=1e6, max_iter=1000).fit(logit[:, None], y)
-    lr0 = LogisticRegression(C=1e6, max_iter=1000, fit_intercept=True)
-    # calibration-in-the-large: intercept with slope fixed at 1 == mean(y) - mean(p) on the logit scale
-    lr0.fit(np.zeros((len(y), 1)), y, sample_weight=None)
+    # calibration-in-the-large: logit(mean observed) - logit(mean predicted)
     citl = float(np.log(y.mean() / (1 - y.mean())) - np.log(p.mean() / (1 - p.mean())))
     return {"auroc": float(roc_auc_score(y, p)), "auprc": float(average_precision_score(y, p)),
             "brier": float(np.mean((p - y) ** 2)), "cal_intercept": citl, "cal_slope": float(lr.coef_[0, 0]), "n": int(len(y))}

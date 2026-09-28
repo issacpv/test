@@ -61,7 +61,7 @@ base AS (
          ROW_NUMBER() OVER (PARTITION BY i.subject_id ORDER BY i.intime) AS stay_rank_subject,
          ROW_NUMBER() OVER (PARTITION BY i.hadm_id ORDER BY i.intime) AS stay_rank_hadm,
          ROW_NUMBER() OVER (PARTITION BY i.subject_id ORDER BY a.admittime) AS adm_rank_subject
-  FROM icustays i JOIN admissions a USING (hadm_id) JOIN patients p USING (subject_id)
+  FROM icustays i JOIN admissions a ON a.hadm_id = i.hadm_id JOIN patients p ON p.subject_id = i.subject_id
 )"""
     ctes.append(base)
 
@@ -90,7 +90,8 @@ base AS (
         elif kind == "admission_type_in":
             where.append("admission_type IN (" + ", ".join(_s(t) for t in p["types"]) + ")")
         elif kind in ("require_icd_prefix", "exclude_icd_prefix"):
-            conds = " OR ".join(f"d.{sch['icd_code']} LIKE {_s(str(pref).replace('.', '') + '%')}" for pref in p["prefixes"])
+            # same normalisation as PandasExecutor: strip dots, upper-case, then prefix match
+            conds = " OR ".join(f"UPPER(REPLACE(d.{sch['icd_code']}, '.', '')) LIKE {_s(str(pref).replace('.', '').upper() + '%')}" for pref in p["prefixes"])
             ver = ""
             if sch["icd_version"] and p.get("icd_version"):
                 ver = f" AND d.{sch['icd_version']} = {int(p['icd_version'])}"
@@ -131,14 +132,14 @@ base AS (
         else:
             raise ValueError(f"unsupported outcome {ok!r}")
 
-    unit_select = {"icustay": "stay_id, hadm_id, subject_id", "hadm": "hadm_id, subject_id", "subject": "subject_id"}[defn.unit]
-    distinct = "" if defn.unit == "icustay" else "DISTINCT "
-    sql = "WITH " + ",\n".join(ctes) + f"\nSELECT {distinct}{unit_select}, intime, age, icu_los_hours, {outcome_sql}\nFROM base\n"
+    unit_select = {"icustay": "stay_id, hadm_id, subject_id", "hadm": "stay_id, hadm_id, subject_id", "subject": "stay_id, hadm_id, subject_id"}[defn.unit]
+    sql = "WITH " + ",\n".join(ctes) + f"\nSELECT {unit_select}, intime, age, icu_los_hours, {outcome_sql}\nFROM base\n"
     if where:
         sql += "WHERE " + "\n  AND ".join(where) + "\n"
     if defn.unit != "icustay":
-        # for hadm/subject units keep the first stay's row so the unit is unique
-        sql = sql.replace("FROM base\n", "FROM base\n") + ("QUALIFY ROW_NUMBER() OVER (PARTITION BY " + ("hadm_id" if defn.unit == "hadm" else "subject_id") + " ORDER BY intime) = 1\n")
+        # hadm / subject units: keep the earliest surviving stay per unit so the unit key is unique
+        key = "hadm_id" if defn.unit == "hadm" else "subject_id"
+        sql += f"QUALIFY ROW_NUMBER() OVER (PARTITION BY {key} ORDER BY intime) = 1\n"
     return sql.strip() + ";"
 
 

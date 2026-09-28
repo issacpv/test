@@ -46,7 +46,7 @@ def mini_mimic():
         }
     )
     diagnoses = pd.DataFrame({"hadm_id": [10, 11, 30, 40], "icd_code": ["A419", "I50.9", "J44", "E11"], "icd_version": [10, 10, 10, 10]})
-    labs = pd.DataFrame({"hadm_id": [10, 11, 40], "itemid": [50912, 50912, 50983], "charttime": pd.to_datetime(["2150-03-01 12:00", "2150-03-16 20:00", "2150-06-01 05:00"]), "valuenum": [1.1, 2.3, 140.0]})
+    labs = pd.DataFrame({"hadm_id": [10, 11, 40], "itemid": [50912, 50912, 50983], "charttime": pd.to_datetime(["2150-03-01 12:00", "2150-03-15 20:00", "2150-06-01 05:00"]), "valuenum": [1.1, 2.3, 140.0]})
     return patients, admissions, icustays, diagnoses, labs
 
 
@@ -184,10 +184,21 @@ def test_sql_matches_pandas_on_duckdb(mini_mimic):
     con = duckdb.connect()
     for name, df in (("patients", patients), ("admissions", admissions), ("icustays", icustays), ("diagnoses_icd", diagnoses), ("labevents", labs)):
         con.register(name, df)
-    d = _defn([{"kind": "age_min", "params": {"years": 18}}, {"kind": "first_icu_stay_only", "params": {}}, {"kind": "min_icu_los_hours", "params": {"hours": 12}}])
-    via_sql = compiler.run_sql(compiler.compile_sql(d), con)
-    via_pd = compiler.PandasExecutor("mimic-iv", patients, admissions, icustays, diagnoses, labs).run(d)
-    assert set(via_sql["stay_id"]) == set(via_pd["stay_id"]) and int(via_sql["outcome"].sum()) == int(via_pd["outcome"].sum())
+    ex = compiler.PandasExecutor("mimic-iv", patients, admissions, icustays, diagnoses, labs)
+    cases = [
+        _defn([{"kind": "age_min", "params": {"years": 18}}, {"kind": "first_icu_stay_only", "params": {}}, {"kind": "min_icu_los_hours", "params": {"hours": 12}}]),
+        _defn([{"kind": "require_icd_prefix", "params": {"prefixes": ["I50.9", "J44"], "icd_version": 10}}, {"kind": "exclude_death_within_hours", "params": {"hours": 72}}], outcome="mortality_30d"),
+        _defn([{"kind": "require_lab_measured", "params": {"itemids": [50912], "window_hours": 24}}], outcome="icu_mortality"),
+        _defn([{"kind": "care_unit_in", "params": {"units": ["MICU"]}}], outcome="readmission_30d", unit="hadm"),
+        _defn([{"kind": "first_icu_stay_only", "params": {"per": "hadm"}}], outcome="icu_los_gt_hours", unit="subject"),
+    ]
+    cases[-1].outcome.hours = 30
+    for d in cases:
+        via_sql = compiler.run_sql(compiler.compile_sql(d), con)
+        via_pd = ex.run(d)
+        assert set(via_sql["stay_id"]) == set(via_pd["stay_id"]), d.criteria
+        assert int(via_sql["outcome"].sum()) == int(via_pd["outcome"].sum()), d.outcome
+        assert len(via_sql) == len(via_pd)
 
 
 # ------------------------------------------------------------- evaluation

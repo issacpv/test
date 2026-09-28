@@ -129,7 +129,9 @@ def synthetic_abp(
         pp = pp0 * (1.0 + a * np.sin(2 * np.pi * f_r * t_beat))
         i0, i1 = int(t_beat * fs), min(int((t_beat + rr) * fs), t.size)
         if i1 > i0:
-            phase = (np.arange(i0, i1) / fs - t_beat) / rr
+            # clip at 0: integer truncation of i0 would otherwise give a slightly negative phase on the first
+            # sample and a beat-varying dip below DBP that inflates the measured PP variation
+            phase = np.clip((np.arange(i0, i1) / fs - t_beat) / rr, 0.0, None)
             abp[i0:i1] = dbp_base + pp * _pulse_template(phase)
         t_beat += rr
     abp += rng.normal(0, noise_sd, size=abp.size)

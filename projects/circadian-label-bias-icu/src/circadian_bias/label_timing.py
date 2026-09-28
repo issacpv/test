@@ -6,7 +6,7 @@ from typing import Dict, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from .circular import clock_hour
+from .circular import as_datetime_series, clock_hour
 
 MIMIC_EVENT_SQL = """
 -- One row per (stay, event_type) with the defining timestamp. Run against a DuckDB built by
@@ -61,8 +61,9 @@ def documentation_delay_by_hour(df: pd.DataFrame, chart_col: str = "charttime", 
 
 def windowed_label(event_time: pd.Series, prediction_time: pd.Series, horizon_h: float) -> pd.Series:
     """1 if the event happens within (prediction_time, prediction_time + horizon]; 0 otherwise (NaT event = 0)."""
-    et = pd.to_datetime(event_time)
-    pt = pd.to_datetime(prediction_time)
+    et = as_datetime_series(event_time)
+    pt = as_datetime_series(prediction_time)
+    pt.index = et.index
     delta_h = (et - pt).dt.total_seconds() / 3600.0
     return ((delta_h > 0) & (delta_h <= horizon_h)).astype(int)
 
@@ -84,7 +85,7 @@ def phase_randomize(event_time: pd.Series, rng: np.random.Generator, mode: str =
     given, so all events of a stay move together and their ordering is preserved).
     mode = "same_day": replace the clock time by a uniform draw within the same calendar day.
     """
-    et = pd.to_datetime(event_time)
+    et = as_datetime_series(event_time)
     if mode == "uniform_24h":
         if group is not None:
             offs = pd.Series(rng.uniform(-12, 12, group.nunique()), index=group.unique())

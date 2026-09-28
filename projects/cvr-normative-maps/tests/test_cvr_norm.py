@@ -45,8 +45,11 @@ def test_cvr_fit_recovers_amplitude_and_delay():
     assert np.allclose(res.amplitude, amps, rtol=0.15, atol=0.15)
     assert np.allclose(res.delay, delays, atol=0.7)
     assert np.all(res.r2 > 0.3) and np.all(res.tstat > 3)
-    floor = cvr_model.r2_floor_from_phase_randomization(bold, reg, 10.0, tr, n_null=3, rng=rng, lag_step=1.0)
+    floor = cvr_model.r2_floor(bold, reg, 10.0, tr, n_null=5, rng=rng, onsets=onsets, durations=durs, lag_step=1.0)
     assert 0.0 <= floor < res.r2.min()
+    # phase randomization keeps the block periodicity and is far too permissive for periodic designs
+    floor_phase = cvr_model.r2_floor(bold, reg, 10.0, tr, n_null=3, rng=rng, method="phase", lag_step=1.0)
+    assert floor_phase > floor
 
 
 def test_normative_model_centiles_and_covariates():
