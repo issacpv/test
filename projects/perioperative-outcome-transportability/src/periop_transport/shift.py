@@ -129,11 +129,16 @@ def recalibrate(p_fit: np.ndarray, y_fit: np.ndarray, method: str = "intercept")
     """
     z, y = _logit(p_fit), np.asarray(y_fit).astype(int)
     if method == "intercept":
-        lr = LogisticRegression(C=1e6, fit_intercept=True)
-        lr.fit(np.zeros((len(z), 1)), y, sample_weight=None)
-        # closed form: intercept shift that matches mean predicted to observed prevalence
-        shift = np.log(y.mean() / (1 - y.mean() + 1e-12) + 1e-12) - np.log(_expit(z).mean() / (1 - _expit(z).mean() + 1e-12) + 1e-12)
-        return lambda p: _expit(_logit(p) + shift)
+        # intercept-only recalibration: Newton solve for a in y ~ expit(z + a)
+        a = 0.0
+        for _ in range(50):
+            q = _expit(z + a)
+            h = -np.sum(q * (1 - q))
+            step = np.sum(y - q) / h if h != 0 else 0.0
+            a -= step
+            if abs(step) < 1e-8:
+                break
+        return lambda p, a=a: _expit(_logit(p) + a)
     if method == "platt":
         lr = LogisticRegression(C=1e6).fit(z.reshape(-1, 1), y)
         a, b = float(lr.coef_[0, 0]), float(lr.intercept_[0])

@@ -21,6 +21,8 @@ def test_algebra_and_breath_fit():
     assert fit["R"] == pytest.approx(10.0, abs=1.0)
     assert fit["C"] == pytest.approx(40.0, rel=0.1)
     assert fit["PEEP"] == pytest.approx(6.0, abs=0.5)
+    fit2 = sc.fit_breath_least_squares(b.paw, b.flow, b.volume, inspiratory_only=True, peep=6.0)
+    assert fit2["R"] == pytest.approx(10.0, abs=1.0) and fit2["C"] == pytest.approx(40.0, rel=0.1)
     est = sc.charted_point_estimates(30, 24, 8, 480, 0.5, 20)
     assert est["dp"] == 16 and est["R"] == pytest.approx(12.0)
     assert np.isnan(sc.charted_point_estimates(np.nan, 24, 8, 480, 0.5, 20)["R"])

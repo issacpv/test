@@ -110,3 +110,86 @@ Coupling metrics are therefore mechanistically attractive but have been studied 
 - Keep the NSRR token in the `NSRR_TOKEN` environment variable only; never commit it.
 - Do not send NSRR/PhysioNet data to third-party LLM or cloud ML APIs; process locally.
 - Never commit EDF/XML files; `data/` is git-ignored. Only derived, non-identifiable per-night summary tables (with NSRR ids) may be shared under the DUA terms, and only with the NSRR's permission.
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py --dataset sleep-edf --sample    # two open nights + subject tables
+pytest tests -q                                                 # synthetic nights, no EDF / YASA needed
+```
+
+One night end-to-end with the starter modules (YASA used automatically when installed):
+
+```python
+from spindle_age import io_edf, detect, coupling, normative, transport
+night = io_edf.load_night("data/sleep-edf/sleep-cassette/SC4001E0-PSG.edf",
+                          "data/sleep-edf/sleep-cassette/SC4001EC-Hypnogram.edf", cohort="sleep-edf")
+sp, so = detect.detect_events(night.signal, night.fs, night.hypno_samples, backend="auto")
+dens = detect.spindle_summary(sp, night.hypno, night.epoch_len)              # density-type metrics
+coup = coupling.coupling_metrics(night.signal, night.fs, night.hypno_samples, sp, so)   # MRL, phase, MI, mrl_z
+# after running all nights of all cohorts -> per-night metrics table `df`
+model = normative.fit_normative(df.age, df.mrl, df.sex, df=5)              # sex-specific centile curves
+df["mrl_centile"] = model.centile(df.age, df.mrl)
+loco = transport.compare_feature_sets({"coupling": df[COUPLING_COLS].values, "density": df[DENSITY_COLS].values},
+                                      df.age, df.cohort, harmonize=True, covariates=df[["sex_code"]].values,
+                                      reference="density", subject=df.subject_id)
+```
+
+## Repository layout
+
+```
+README.md
+requirements.txt
+data/README.md             PhysioNet, NSRR (nsrr gem + token), OpenNeuro, Dreem acquisition and layout
+scripts/download_data.py   open downloads, NSRR wrapper reading NSRR_TOKEN, openneuro-py wrapper
+src/spindle_age/
+  io_edf.py                cohort channel maps, derivation resolution/re-referencing, NSRR XML + Sleep-EDF hypnograms, preprocessing
+  detect.py                YASA spindle/SO wrappers + fallback envelope/zero-crossing detectors, density summaries
+  coupling.py              SO phase, coupled-spindle matching, MRL/preferred phase/Rayleigh, Tort MI, event-locked sigma, surrogate z
+  normative.py             B-spline quantile regression normative model, centiles/z-scores, calibration, age-slope bootstrap
+  transport.py             ComBat-style harmonizer, LOCO evaluation, paired bootstrap, feature-set comparison
+tests/test_spindle_age.py  synthetic coupled vs uncoupled nights; normative recovery; LOCO with site effects
+```
+
+## Cohort variables to extract (per night)
+
+- Identifiers: cohort, subject id, visit, night index, derivation used, original fs, device/hardware code where available.
+- Demographics/covariates: age, sex, BMI, race/ethnicity (MESA), education, AHI (`nsrr_ahi_hp3u`), ODI, TST, sleep efficiency, N2/N3/REM minutes, arousal index, benzodiazepine/antidepressant use.
+- Spindle metrics: density (N2, N2+N3; fast/slow), amplitude, duration, frequency, count, sigma power.
+- SO metrics: rate per minute, PTP amplitude, slope, duration, SWA (0.5-4 Hz power).
+- Coupling metrics: coupled fraction, preferred phase, MRL, MRL surrogate z, Rayleigh z, Tort MI, event-locked sigma up-state % increase, coupling phase SD.
+- Cognition: MESA Digit Symbol Coding / CASI; MrOS 3MS / Trails B; CFS none (age norms only); Sleep-EDF none.
+- Outcomes: SHHS incident CHD/CVD/stroke, CVD death, all-cause death (dates); MESA incident CVD events.
+
+## Planned tables and figures
+
+- Table 1: cohorts, nights, ages, sex split, derivation, fs, hardware, NREM minutes, artifact %, detector QC.
+- Table 2: sex-specific normative centiles (5/25/50/75/95) of MRL and spindle density at ages 10-90 in decade steps; standardized age slopes with CIs (H1-H2).
+- Table 3: LOCO transportability, rows = held-out cohort, columns = feature set x harmonization; MAE, R2, calibration slope, transport gap (H3).
+- Table 4: mixed-model associations of coupling and density with processing speed in MESA and MrOS (H4).
+- Table 5: Cox HRs per SD for incident CVD/CHD in SHHS1 with replication in MESA (H5).
+- Figure 1: lifespan centile chart of coupling precision by sex, cohorts overlaid.
+- Figure 2: within-subject derivation agreement (Fpz-Cz vs Pz-Oz; Fz-Cz vs C4-M1) for coupling vs density (H6).
+- Figure 3: LOCO predicted vs chronological age per held-out cohort, coupling vs density models.
+- Figure 4: Kaplan-Meier / cumulative incidence by coupling-centile tertile.
+
+## Key references
+
+- Purcell et al. (2017). Characterizing sleep spindles in 11,630 individuals from the National Sleep Research Resource. *Nat. Commun.* 8:15930.
+- Djonlagic et al. (2021). Macro and micro sleep architecture and cognitive performance in older adults. *Nat. Hum. Behav.* 5:123-145.
+- Helfrich et al. (2018). Old brains come uncoupled in sleep: slow wave-spindle synchrony, brain atrophy, and forgetting. *Neuron* 97:221-230.
+- Muehlroth et al. (2019). Precise slow oscillation-spindle coupling promotes memory consolidation in younger and older adults. *Sci. Rep.* 9:1940.
+- Hahn et al. (2020). Slow oscillation-spindle coupling predicts enhanced memory formation from childhood to adolescence. *eLife* 9:e53730.
+- Kurz et al. (2023). The hierarchy of coupled sleep oscillations reverses with aging in humans. *J. Neurosci.*
+- Chylinski et al. (2022). Timely coupling of sleep spindles and slow waves linked to early amyloid-beta burden and predicts memory decline. *eLife* 11:e78191.
+- Juginovic et al. (2025). Sleep spindle density and sleep depth as predictors of cardiovascular outcomes: a prospective EEG study. *Sleep Med.*
+- Adra et al. (2022). Optimal spindle detection parameters for predicting cognitive performance. *Sleep* 45:zsac001.
+- Sun et al. (2019). Brain age from the electroencephalogram of sleep. *Neurobiol. Aging* 74:112-120; Paixao et al. (2020). Excess brain age in the sleep electroencephalogram predicts reduced life and healthy lifespan. *Neurobiol. Aging* 88:150-155.
+- Vallat & Walker (2021). An open-source, high-performance tool for automated sleep staging. *eLife* 10:e70092 (YASA).
+- Lacourse et al. (2019). A sleep spindle detection algorithm that emulates human expert spindle scoring. *J. Neurosci. Methods* 316:3-11.
+- Tort et al. (2010). Measuring phase-amplitude coupling between neuronal oscillations of different frequencies. *J. Neurophysiol.* 104:1195-1210.
+- Bethlehem et al. (2022). Brain charts for the human lifespan. *Nature* 604:525-533; Rigby & Stasinopoulos (2005). Generalized additive models for location, scale and shape. *J. R. Stat. Soc. C* 54:507-554.
+- Zhang et al. (2018). The National Sleep Research Resource: towards a sleep data commons. *JAMIA* 25:1351-1358.
+- Kemp et al. (2000). Analysis of a sleep-dependent neuronal feedback loop: the slow-wave microcontinuity of the EEG. *IEEE TBME* 47:1185-1194 (Sleep-EDF).
+- Guillot et al. (2020). Dreem Open Datasets: multi-scored sleep datasets to compare human and automated sleep staging. *IEEE TNSRE* 28:1955-1965.

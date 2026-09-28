@@ -168,10 +168,11 @@ def from_bids_participants(participants: PathOrFrame, dataset: str, site: Option
     """BIDS ``participants.tsv`` (``participant_id``, ``age``, ``sex``; optional diagnosis column)."""
     p = _frame(participants)
     ages = p["age"].map(parse_age_bin) if "age" in p else [(np.nan, False)] * len(p)
+    sex_col = next((c for c in ("sex", "gender", "Sex", "Gender") if c in p), None)  # CNP uses 'gender'
     out = pd.DataFrame({"subject_id": p["participant_id"].astype(str), "dataset": dataset,
                         "site": site or dataset, "scanner": scanner,
                         "age": [a for a, _ in ages], "age_is_binned": [b for _, b in ages],
-                        "sex": p["sex"] if "sex" in p else None})
+                        "sex": p[sex_col] if sex_col else None})
     if diagnosis_col and diagnosis_col in p:
         out["diagnosis"] = p[diagnosis_col]
         out["group"] = np.where(p[diagnosis_col].isin(control_values), "control", "patient")

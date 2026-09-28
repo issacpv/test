@@ -49,6 +49,39 @@ Modelling of the same data exists in two flavours: (i) biophysically detailed si
 | Allen biophysical models (perisomatic, Gouwens 2018; all-active, Nandi 2022) | Fitted channel parameters and model code per cell; simulate on other morphologies | hundreds of models | Open (allensdk `BiophysicalApi`, NEURON) | https://allensdk.readthedocs.io/en/latest/biophysical_models.html |
 | NeuroMorpho.org (mouse + human neocortex) | Morphology-only reconstructions for self-supervised GNN pre-training and for scaling the morphology encoder | tens of thousands | Open (REST API) | https://neuromorpho.org/api/ |
 
+## Quick start
+
+```bash
+cd projects/morphology-to-electrophysiology
+pip install -r requirements.txt                 # allensdk/torch are only needed for data access / the GNN
+python -m pytest tests -q                       # synthetic tests: graph builder, ephys extractor, ridge, transfer
+python scripts/download_data.py --sample        # 10 mouse + 5 human reconstructed cells + feature tables
+python - <<'EOF'
+import glob, pandas as pd, numpy as np
+from morph2ephys.allen_fetch import load_cached_table, coarse_type_labels, PASSIVE_TARGETS
+from morph2ephys.swc_graph import read_swc, morphometric_vector
+from morph2ephys.baseline import multi_target_baseline, within_type_partial_r2
+tab = load_cached_table("data/allen")
+feats = {int(p.split("specimen_")[1].split("/")[0]): morphometric_vector(read_swc(p)) for p in glob.glob("data/allen/specimen_*/reconstruction.swc")}
+X = pd.DataFrame.from_dict(feats, orient="index")
+tab = tab.set_index("id").loc[X.index]
+print(multi_target_baseline(X, tab[list(PASSIVE_TARGETS)], groups=tab["donor_id"].fillna(tab.index.to_series())))
+print(within_type_partial_r2(X.to_numpy(), tab["rin"].to_numpy(), coarse_type_labels(tab), tab["donor_id"].fillna(tab.index.to_series())))
+EOF
+```
+
+## Analysis tables
+
+| Table | Grain | Key columns |
+|---|---|---|
+| `cells_with_features` | cell (specimen) | id, species, structure_layer_name, structure_area_abbrev, dendrite_type, transgenic_line, donor_id, reconstruction_type, rin, sag, tau, rheobase, ud_ratio, adaptation, fi_slope, vrest, latency, avg_isi, allen_morph_* |
+| `ephys_recomputed` | cell | ap_width (ms, half-height at rheobase sweep), rin, sag, tau, rheobase, adaptation, fi_slope from `ephys_features.py`, plus Allen-table values for Bland-Altman |
+| `morphometrics` | cell | 25 features from `morphometric_vector` (dend/basal/apical length, n_bif, n_tips, max_branch_order, max_path_dist, hull_volume, soma_radius, tortuosity, sholl_peak, ...) |
+| `graphs` | cell | `.npz` with x (n_nodes × 15), edge_index, pos, node_type, globals |
+| `patchseq_labels` | cell | t_type, met_type, subclass, dataset (mouse VISp GABA / mouse glut / human) |
+| `predictions` | cell × target × model × experiment | y, yhat, fold, train_species, test_species, shots (few-shot), seed |
+| `metrics` | target × model × experiment | r2, spearman, rmse, bootstrap CI, permutation p, transfer_gap, partial_r2_within_type, r2_type_only |
+
 ## Methods
 
 1. **Assembly** (`scripts/download_data.py`, `src/morph2ephys/allen_fetch.py`): cells with reconstruction; join ephys features (`input_resistance_mohm`, `sag`, `tau`, `threshold_i_long_square` (rheobase), `upstroke_downstroke_ratio_long_square`, `adaptation`, `f_i_curve_slope`, `vrest`), morphology features, metadata (species, layer, dendrite type, Cre line, donor). AP half-width is recomputed from NWB sweeps with `ipfx`/own extractor (`ephys_features.py`) at the rheobase sweep.
@@ -93,6 +126,21 @@ Modelling of the same data exists in two flavours: (i) biophysically detailed si
 - [ ] Biophysical baseline on matched cells (H4).
 - [ ] Attribution analysis (H5).
 - [ ] Preprint, code and model release.
+
+## Repository layout
+
+```
+README.md                          this document
+requirements.txt                   dependencies (allensdk, torch optional at import time)
+data/README.md                     acquisition: allensdk Cell Types, Patch-seq/DANDI, biophysical models, NeuroMorpho
+scripts/download_data.py           Allen cells + feature tables + SWC (+NWB); NeuroMorpho neocortical SWCs
+src/morph2ephys/allen_fetch.py     AllenCellTypesFetcher (tables, SWC, NWB, long-square sweeps), target definitions
+src/morph2ephys/swc_graph.py       SWC -> NeuronGraph (15 node features, bidirectional edges), augmentations, 25 morphometrics
+src/morph2ephys/ephys_features.py  own long-square extractor (rin, sag, tau, rheobase, AP width, adaptation, f-I) + LIF-with-sag simulator
+src/morph2ephys/baseline.py        ridge with GroupKFold, permutation null, transfer gap, few-shot curve, within-type partial R2
+src/morph2ephys/gnn.py             plain-PyTorch GraphSAGE regressor, training loop with early stopping, fine-tuning, attributions
+tests/test_morph2ephys.py          synthetic graph/ephys/regression tests (torch not required)
+```
 
 ## Ethics / data-use notes
 

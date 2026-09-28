@@ -26,9 +26,9 @@ def extreme_deviations(Z: pd.DataFrame, threshold: float = 1.96) -> pd.DataFrame
     ``n_valid`` so that counts can be expressed as fractions.
     """
     Z = Z.apply(pd.to_numeric, errors="coerce")
-    neg = (Z < -threshold).sum(1)
-    pos = (Z > threshold).sum(1)
-    n_valid = Z.notna().sum(1)
+    neg = (Z < -threshold).sum(axis=1)
+    pos = (Z > threshold).sum(axis=1)
+    n_valid = Z.notna().sum(axis=1)
     return pd.DataFrame({"n_neg": neg, "n_pos": pos, "n_total": neg + pos, "n_valid": n_valid,
                          "frac_total": (neg + pos) / n_valid.replace(0, np.nan)}, index=Z.index)
 

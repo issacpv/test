@@ -39,7 +39,7 @@ python scripts/download_data.py oasis3 --what dwi --ids data/oasis3/tables/mr_id
 
 ## 4. OpenNeuro (open, no credentials)
 
-Datasets: `ds004169` (QTIM, T1w, 2 sessions, healthy twins), `ds000030` (UCLA CNP, T1 + DWI, controls + SCZ/BD/ADHD), `ds000221` (MPI-LEMON, T1 + DWI, 20-80 y), `ds003097` (AOMIC-ID1000, T1 + DWI, young adults).
+Datasets: `ds004169` (QTIM: 1,202 healthy 12-30 y from 682 families; T1w with two acquisition protocols, DWI on ~690 at session 1, second session for ~140 with 58 repeat DWI; columns `family_id, sex, age, age_ses02, ses01_T1w_acq, ses02_T1w_acq, ses01_dwi_acq, ses02_dwi_acq`), `ds000030` (UCLA CNP: 130 controls, 50 SCZ, 49 BD, 43 ADHD; T1 + 64-dir DWI; sex is in the `gender` column, diagnosis in `diagnosis`), `ds000221` (MPI-LEMON, T1 + DWI, 20-80 y), `ds003097` (AOMIC-ID1000, T1 + DWI, young adults).
 
 ```
 python scripts/download_data.py openneuro --datasets ds004169 ds000030 --sample 3

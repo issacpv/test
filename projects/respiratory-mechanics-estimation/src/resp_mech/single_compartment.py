@@ -103,19 +103,38 @@ def simulate_vcv_breath(
     return Breath(t=t, paw=paw, flow=flow, volume=volume)
 
 
-def fit_breath_least_squares(paw: np.ndarray, flow: np.ndarray, volume: np.ndarray, inspiratory_only: bool = True) -> dict[str, float]:
+def fit_breath_least_squares(
+    paw: np.ndarray,
+    flow: np.ndarray,
+    volume: np.ndarray,
+    inspiratory_only: bool = False,
+    peep: float | None = None,
+) -> dict[str, float]:
     """Multiple linear regression fit of ``Paw = E*V + R*Flow + P0`` on one breath.
 
-    Returns R (cmH2O/(L/s)), C (mL/cmH2O), PEEP estimate P0 and the RMS residual.
+    With a square inspiratory flow the flow column and the intercept are
+    collinear during inspiration, so R and PEEP are not separately
+    identifiable from inspiration alone; use the whole breath (passive
+    expiration obeys the same equation with Paw = PEEP) or pass a known
+    ``peep`` and fit inspiration only.
+
+    Returns R (cmH2O/(L/s)), C (mL/cmH2O), E (cmH2O/mL), PEEP estimate P0 and the RMS residual.
     """
     paw = np.asarray(paw, float)
     flow = np.asarray(flow, float)
     volume = np.asarray(volume, float)
     mask = flow > 0 if inspiratory_only else np.ones(len(paw), bool)
-    X = np.column_stack([volume[mask], flow[mask], np.ones(mask.sum())])
-    coef, *_ = np.linalg.lstsq(X, paw[mask], rcond=None)
-    e, r, p0 = coef
-    resid = paw[mask] - X @ coef
+    if peep is None:
+        X = np.column_stack([volume[mask], flow[mask], np.ones(mask.sum())])
+        coef, *_ = np.linalg.lstsq(X, paw[mask], rcond=None)
+        e, r, p0 = coef
+        resid = paw[mask] - X @ coef
+    else:
+        X = np.column_stack([volume[mask], flow[mask]])
+        coef, *_ = np.linalg.lstsq(X, paw[mask] - peep, rcond=None)
+        e, r = coef
+        p0 = float(peep)
+        resid = paw[mask] - peep - X @ coef
     return {"R": float(r), "C": float(1.0 / e) if e > 0 else float("nan"), "E": float(e), "PEEP": float(p0), "rmse": float(np.sqrt(np.mean(resid**2)))}
 
 

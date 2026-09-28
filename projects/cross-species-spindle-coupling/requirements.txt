@@ -1,0 +1,17 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+requests>=2.31
+pyyaml>=6.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# NWB / EDF ingestion (not needed for the tests)
+# pynwb>=2.6
+# h5py>=3.10
+# fsspec>=2024.2
+# aiohttp>=3.9
+# dandi>=0.60
+# mne>=1.6
+# pyedflib>=0.1.36

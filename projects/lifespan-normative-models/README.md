@@ -34,7 +34,7 @@ So diffusion lifespan curves exist. What is specifically missing:
 5. Individual-level reliability of centiles (test-retest: HCP-YA retest subset; QTIM ds004169 two sessions for T1) is rarely reported alongside the charts.
 6. Open release of fitted reference curves (parameters, not data) with a scoring function, including site-adaptation utilities.
 
-Verification note on OpenNeuro: ds004169 is the Queensland Twin IMaging (QTIM) dataset (1,202 healthy twins/siblings, T1w, two sessions, `family_id` for non-independence). It is a healthy external site with test-retest, not a clinical dataset. The verified open clinical dataset with T1 + 64-direction DWI is UCLA CNP (ds000030: 138 controls, 58 schizophrenia, 49 bipolar, 45 ADHD). Aging/dementia clinical transfer uses OASIS-3 (DUA), not OpenNeuro.
+Verification note on OpenNeuro (participants.tsv files fetched from the public bucket): ds004169 is the Queensland Twin IMaging (QTIM) dataset: 1,202 healthy participants aged 12-30 from 682 families, T1w acquired under two protocols (955 vs 247 subjects), DWI available for ~690 at session 1, and a second session for ~140 (58 with repeat DWI). It is therefore a healthy external site with test-retest and a within-site protocol change, not a clinical dataset. The verified open clinical dataset with T1 + 64-direction DWI is UCLA CNP (ds000030: 130 controls, 50 schizophrenia, 49 bipolar, 43 ADHD; DWI on 262). Aging/dementia clinical transfer uses OASIS-3 (DUA), not OpenNeuro.
 
 ## Research questions / hypotheses
 
@@ -42,7 +42,7 @@ Verification note on OpenNeuro: ds004169 is the Queensland Twin IMaging (QTIM) d
 2. RQ2 (adaptation budget). H2: shift-scale adaptation with 25 local controls restores extreme rates to ≤ 8% for thickness; FA/MD need ≥ 50 controls or a site-specific variance term.
 3. RQ3 (reference-model agreement). For OASIS-3 and CNP individuals, compare centiles from (a) BrainChart curves, (b) PCNtoolkit lifespan models, (c) local quantile models. H3: Spearman ρ > 0.9 for centiles but κ < 0.6 for extreme-deviation flags (threshold effects dominate).
 4. RQ4 (clinical value of diffusion centiles). H4: MD extreme-deviation counts add ΔAUC ≥ 0.03 over thickness/volume counts for CDR ≥ 0.5 vs 0 in OASIS-3; no added value for A+ vs A- among CDR 0; the gain shrinks when OASIS-3 is held out of the reference (site-effect sensitivity of clinical detection).
-5. RQ5 (reliability). H5: test-retest ICC of centiles ≥ 0.8 for regional thickness and tract FA, ≥ 0.7 for MD; the SE of a centile is ≥ 8 centile points, which bounds how "extreme" a single scan can be declared.
+5. RQ5 (reliability). Using the HCP-YA 45-subject retest release and the QTIM second session (~140 T1w, 58 DWI), H5: test-retest ICC of centiles ≥ 0.8 for regional thickness and tract FA, ≥ 0.7 for MD; the SE of a centile is ≥ 8 centile points, which bounds how "extreme" a single scan can be declared. QTIM's two T1w acquisition protocols additionally give a within-site protocol-shift estimate for thickness centiles.
 
 ## Datasets
 
@@ -52,8 +52,8 @@ Verification note on OpenNeuro: ds004169 is the Queensland Twin IMaging (QTIM) d
 | HCP-Development (HCP-D) | Lifespan 2.0 release: T1/T2, FreeSurfer, multi-shell dMRI, `interview_age` in months | ~1,300 participants, 5-21 y | NIMH Data Archive (NDA) account + Data Use Certification; download with `nda-tools` (`downloadcmd`) | https://nda.nih.gov/ (HCP-D collection 2846), https://www.humanconnectome.org/study/hcp-lifespan-development |
 | HCP-Aging (HCP-A) | Lifespan 2.0 release: same modalities | ~1,200 participants, 36-100+ y | NDA account + DUC (collection 2847) | https://www.humanconnectome.org/study/hcp-lifespan-aging |
 | OASIS-3 | T1, FreeSurfer 5.3, DTI (single-shell) subset, CDR, amyloid PET (Centiloid) | ~1,300 participants; DTI on several hundred sessions | NITRC-IR DUA (free) | https://www.nitrc.org/projects/oasis3/ |
-| OpenNeuro ds004169 (QTIM) | Healthy twins/siblings, T1w, two sessions, age (rounded), sex, `family_id` | 1,202 subjects | Open (CC0) | https://openneuro.org/datasets/ds004169 |
-| OpenNeuro ds000030 (UCLA CNP) | T1 + 64-dir DWI; controls, schizophrenia, bipolar, ADHD | 272 subjects | Open | https://openneuro.org/datasets/ds000030 |
+| OpenNeuro ds004169 (QTIM) | Healthy adolescents/young adults (12-30 y) from 682 families; T1w under two acquisition protocols; DWI on ~690 subjects at session 1; ~140 with a second session (58 with repeat DWI); age (rounded), sex, `family_id` (verified from participants.tsv) | 1,202 subjects | Open (CC0) | https://openneuro.org/datasets/ds004169 |
+| OpenNeuro ds000030 (UCLA CNP) | T1 (265) + 64-dir DWI (262); 130 controls, 50 schizophrenia, 49 bipolar, 43 ADHD; 21-50 y (verified from participants.tsv) | 272 subjects | Open | https://openneuro.org/datasets/ds000030 |
 | OpenNeuro ds000221 (MPI-LEMON) | Healthy adults 20-80 y, T1 + DWI | ~228 subjects | Open | https://openneuro.org/datasets/ds000221 |
 | OpenNeuro ds003097 (AOMIC-ID1000) | Healthy young adults, T1 + DWI | ~928 subjects | Open | https://openneuro.org/datasets/ds003097 |
 | BrainChart reference curves | GAMLSS models/centile tables for GMV, WMV, sGMV, ventricles, mean thickness, total SA | software/curves | Open (GitHub) | https://github.com/brainchart/Lifespan |

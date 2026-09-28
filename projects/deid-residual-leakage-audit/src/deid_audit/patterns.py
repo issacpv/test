@@ -19,7 +19,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from .sections import Section, section_of, split_sections
+from .sections import Section, in_header, section_of, split_sections
 
 MONTHS = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?"
 STREET = r"(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl)"
@@ -74,7 +74,7 @@ def scan(text: str, sections: Sequence[Section] | None = None,
         seen: set[tuple[int, int]] = set()
         for m in rx.finditer(text):
             span = (m.start(), m.end())
-            if span in seen:
+            if span in seen or in_header(m.start(), secs):
                 continue
             seen.add(span)
             out.append(Finding(cat, section_of(m.start(), secs), m.start(), m.end() - m.start()))

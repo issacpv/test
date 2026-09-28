@@ -1,0 +1,14 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# downloads of Allen Cell Types / Patch-seq metadata
+# allensdk>=2.16
+# optional learned graph embeddings (GraphDINO-style)
+# torch>=2.1
+# torch-geometric>=2.4

@@ -35,9 +35,12 @@ MIMIC3_PLACEHOLDER = re.compile(r"\[\*\*(.*?)\*\*\]", re.DOTALL)
 
 @dataclass(frozen=True)
 class Section:
+    """A template section: ``[start, end)`` in character offsets; ``header_end`` closes the header text."""
+
     name: str
     start: int
     end: int
+    header_end: int = 0
 
 
 def _header_regex(headers: Sequence[str]) -> re.Pattern:
@@ -57,7 +60,7 @@ def split_sections(text: str, headers: Sequence[str] = DISCHARGE_HEADERS) -> lis
     for i, m in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         canonical = next(h for h in headers if h.lower() == m.group("h").lower())
-        out.append(Section(canonical, m.start(), end))
+        out.append(Section(canonical, m.start(), end, m.end()))
     return out
 
 
@@ -66,6 +69,11 @@ def section_of(offset: int, sections: Iterable[Section]) -> str:
         if s.start <= offset < s.end:
             return s.name
     return "PREAMBLE"
+
+
+def in_header(offset: int, sections: Iterable[Section]) -> bool:
+    """True when ``offset`` falls inside a template header (headers are never identifiers)."""
+    return any(s.start <= offset < s.header_end for s in sections)
 
 
 def placeholder_stats(text: str, sections: Sequence[Section] | None = None) -> dict[str, int]:

@@ -51,6 +51,40 @@ These laws are increasingly used as priors: for synthetic morphology generators,
 
 No credentialed data are involved.
 
+## Quick start
+
+```bash
+cd projects/neuromorpho-scaling-laws
+pip install -r requirements.txt
+python -m pytest tests -q                       # synthetic tests, no network
+python scripts/download_data.py --sample        # ~25 records x 7 species, 5 CNG.swc files each
+python - <<'EOF'
+from pathlib import Path
+import pandas as pd
+from nm_scaling.swc import read_swc, morphometrics
+from nm_scaling.mixed_models import prepare_allometric_frame, fit_scaling_mixed_model, wald_test_exponent
+meta = pd.read_parquet("data/metadata/neurons.parquet")            # or .csv
+rows = []
+for p in Path("data/swc").rglob("*.CNG.swc"):
+    rows.append(dict(neuron_name=p.name.replace(".CNG.swc", ""), archive=p.parent.name, **morphometrics(read_swc(p))))
+df = prepare_allometric_frame(pd.DataFrame(rows).merge(meta, on=["neuron_name", "archive"]))
+fit = fit_scaling_mixed_model(df, fixed=("log_n", "log_V", "effective_dimension"), categorical=("species",), group="archive")
+print(fit.params, fit.icc, wald_test_exponent(fit, "log_n", 2/3))
+EOF
+```
+
+## Analysis tables
+
+| Table | Grain | Key columns |
+|---|---|---|
+| `neurons` (API) | one row per reconstruction | neuron_id, neuron_name, archive, species, scientific_name, strain, brain_region_top, cell_type_0, reconstruction_software, shrinkage_corrected_flag, shrinkage_reported, protocol, slicing_thickness, magnification, objective_type, stain, physical_Integrity, structural_domains, reference_pmid |
+| `lmeasure` (API `/morphometry`) | one row per reconstruction | NeuroMorpho's L-Measure summary (total_length, n_bifs, n_branch, max_branch_order, width/height/depth, volume, surface, partition_asymmetry, fractal_dimension, ...) for cross-checking |
+| `morphometrics` (own) | reconstruction × neurite domain (dendrites, axon) | total_length, n_branch_points, n_tips, n_stems, max_branch_order, max_path_distance, hull_volume, hull_area_2d, bbox_volume, effective_dimension, planarity, mean_segment_length, sholl_peak, sholl_peak_radius, sholl_auc |
+| `allometry` | analysis frame | log_L, log_n, log_V, effective_dimension + all batch and biology columns; inclusion flags |
+| `exponents` | stratum (species / region / class / planar vs 3-D) × model | term, estimate, se, ci_low, ci_high, wald_p_vs_theory, tost_p, lab_variance, icc, n_obs, n_labs |
+| `species_level` | species | lab-adjusted mean residual, se, n_cells, n_labs, brain_mass_g, n_neurons, TimeTree name |
+| `attenuation` | feature | var_species_naive, var_species_adjusted, attenuation, bootstrap CI, permutation p, n_labs_multispecies, n_species_multilab |
+
 ## Methods
 
 1. **Metadata harvest** (`scripts/download_data.py`): page through `/api/neuron` (500 per page) or `/api/neuron/select` with JSON filters; store one JSONL per species; flatten list fields (`brain_region`, `cell_type`). Also harvest `/api/morphometry` (NeuroMorpho's L-Measure summary: `total_length`, `n_bifs`, `n_branch`, `max_branch_order`, `width/height/depth`, `volume`, `surface`, `partition_asymmetry`, `fractal_dimension`, ...) so a first pass needs no SWC files.
@@ -97,6 +131,20 @@ No credentialed data are involved.
 - [ ] Region/class/axon extensions (H4), software/shrinkage bias table (H5).
 - [ ] Sholl functional mixed model.
 - [ ] Preprint + code/data release (adjusted morphometrics table).
+
+## Repository layout
+
+```
+README.md                    this document
+requirements.txt             pinned-ish dependencies
+data/README.md               step-by-step acquisition (NeuroMorpho API, TimeTree, species covariates)
+scripts/download_data.py     resumable metadata / morphometry / CNG.swc downloader (--sample, --species, --all)
+src/nm_scaling/api_client.py NeuroMorphoClient: paginated /neuron and /neuron/select, /morphometry, SWC download
+src/nm_scaling/swc.py        SWC parser; length, branch points, Sholl, hull volume, effective dimension, wiring-law prediction
+src/nm_scaling/mixed_models.py  MixedLM allometric fits, Wald/TOST exponent tests, variance partition, species attenuation, nulls
+src/nm_scaling/phylo_gls.py  Newick -> Brownian covariance, Pagel's lambda, PGLS with measurement error, phylogenetic signal
+tests/test_nm_scaling.py     synthetic-tree and synthetic-lab tests (no network)
+```
 
 ## Ethics / data-use notes
 

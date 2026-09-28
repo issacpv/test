@@ -1,0 +1,43 @@
+# data and outputs are never committed
+data/*
+!data/README.md
+outputs/
+results/
+cache/
+*.csv
+*.csv.gz
+*.parquet
+*.json.zip
+*.zip
+*.duckdb
+*.db
+*.pkl
+*.npz
+*.npy
+*.nii.gz
+*.edf
+*.nwb
+
+# rxnorm / openfda caches
+*.cache.json
+rxnorm_cache*.json
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# env / secrets
+.env
+.envrc
+.venv/
+venv/
+
+# editors
+.vscode/
+.idea/
+*.swp

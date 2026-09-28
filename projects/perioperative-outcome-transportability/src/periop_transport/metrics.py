@@ -40,10 +40,8 @@ def calibration_intercept_slope(y: np.ndarray, p: np.ndarray) -> tuple[float, fl
     if y.min() == y.max():
         return np.nan, np.nan
     slope = float(LogisticRegression(C=1e6).fit(z, y).coef_[0, 0])
-    # calibration-in-the-large: intercept with offset = logit(p) (slope fixed at 1)
-    lr = LogisticRegression(C=1e6, fit_intercept=True)
-    lr.fit(np.zeros_like(z), y)  # placeholder to get shapes; closed form below is exact for offset model
-    # Newton iterations for intercept a in  y ~ expit(z + a)
+    # calibration-in-the-large: intercept a of the offset model y ~ expit(logit(p) + a),
+    # i.e. slope fixed at 1; solved by Newton iterations on the log-likelihood
     a = 0.0
     zf = z.ravel()
     for _ in range(50):

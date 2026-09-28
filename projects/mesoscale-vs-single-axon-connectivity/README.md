@@ -133,6 +133,20 @@ EOF
 - [ ] TVB re-parameterisation experiment (H4).
 - [ ] Preprint, per-region table and code release.
 
+## Repository layout
+
+```
+README.md                              this document
+requirements.txt                       dependencies (allensdk; mcmodels and tvb optional)
+data/README.md                         acquisition: Allen connectivity via allensdk, MouseLight JSON export, SEU-ALLEN/BIL, NeuroMorpho
+scripts/download_data.py               --allen (ontology, annotation, experiments, projection matrices), --mouselight-json, --neuromorpho
+src/meso_vs_axon/allen_connectivity.py ConnectivityFetcher (summary structures, unionize matrix, injection fractions), region vectors, voxel model
+src/meso_vs_axon/ccf_assign.py         SWC/MouseLight parsing, axon terminals/segments -> CCF structures -> per-neuron target vectors
+src/meso_vs_axon/concordance.py        Jaccard, weighted tau, AUROC, precision@k, pooled recovery curves, permutation and specificity nulls
+src/meso_vs_axon/heterogeneity.py      PHI, nearest-neighbour distance, motif entropy, independent-sampling null, bootstrap CI, rarefaction, region table
+tests/test_meso_vs_axon.py             toy CCF volume + synthetic projection populations (no network)
+```
+
 ## Ethics / data-use notes
 
 - All data are from mice under the depositing institutions' IACUC approvals; only open, de-identified datasets are used. Cite the Allen Institute Terms of Use, MouseLight (Janelia) and BICCN/BIL data-use policies and the source publications.
