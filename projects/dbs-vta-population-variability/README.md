@@ -109,6 +109,49 @@ No credentialed data are involved.
 - Human reconstructions are de-identified surgical/post-mortem tissue curated by the depositing institutions; no patient data are used in the starter design. If patient-specific Lead-DBS fields are added later, use only data shared under appropriate consent/DUA and never commit them.
 - Do not commit SWC files, field volumes or threshold tables (`data/` and `outputs/` are git-ignored).
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py --sample          # NeuroMorpho metadata + 10 axon-bearing SWC files
+PYTHONPATH=src pytest -q tests                    # synthetic tests (no network, no NEURON)
+```
+
+```python
+import glob
+import numpy as np
+from dbs_popvta import (LEADS, LeadField, Pulse, load_swc, axon_paths, threshold_sweep,
+                        probabilistic_vta_radius, efield_isoline_radius, variance_decomposition)
+
+field = LeadField(LEADS["medtronic_3389"], active=[(1, None, 1.0)], sigma=0.2)   # monopolar, contact 1
+paths = {}
+for f in glob.glob("data/neuromorpho/swc/*.CNG.swc"):
+    for k, p in enumerate(axon_paths(load_swc(f), min_length_mm=1.0)[:3]):
+        paths[f"{f.split('/')[-1]}#{k}"] = p
+sweep = threshold_sweep(field, paths, diameters_um=[2.0, 3.5, 5.7, 7.3, 10.0],
+                        distances_mm=[1, 1.5, 2, 3, 4, 5], n_orient=5, pulse=Pulse(0.06), scale=2.0)
+print(probabilistic_vta_radius(sweep, amplitude=3.0))          # r_p50 with 5-95% band
+print(efield_isoline_radius(field, amplitude=3.0))             # 0.2 V/mm heuristic for comparison
+print(variance_decomposition(sweep, "threshold", ["morphology", "diameter_um", "distance_mm", "orientation"]))
+```
+
+## Pre-specified operational definitions
+
+| Item | Definition (frozen before the sweeps) |
+|---|---|
+| Morphology set | NeuroMorpho reconstructions with axon in `structural_domains`, integrity not "Dendrites Complete" only, >= 1 mm total axon length; MouseLight/SEU-ALLEN L5 PT neurons with STN or thalamic collaterals; Allen human cortical cells (dendrite-only, hillock paths) |
+| Path | root-to-terminal axon polyline (mm); the full tree is used for branch-point statistics (H4) |
+| Scaling | geometric factor 2.0 (mouse), 1.6 (rat), 1.2 (monkey), 1.0 (human) as a design axis, plus unscaled sensitivity |
+| Diameter | fibre diameter in {2, 3.5, 5.7, 7.3, 10} um (node diameter 0.7 D, internode 100 D); Liewald-weighted mixture for population summaries |
+| Placement | path centroid at perpendicular distance r in {0.5, 1, 1.5, 2, 3, 4, 5, 6} mm at the active-contact height; 5 random orientations |
+| Field | homogeneous 0.2 S/m (nominal); encapsulation factor 0.7; anisotropy proxy (radial 0.7 x); OSS-DBS FEM export where available |
+| Stimulus | cathodic monophasic 60 us (primary), 90 and 120 us, charge-balanced biphasic; current-controlled; voltage-controlled sensitivity |
+| Threshold | smallest amplitude producing a propagated action potential (V > -20 mV at the node farthest from the peak activating function); bisection to 2% |
+| Probabilistic VTA | P(threshold <= amplitude) vs r; radii at P = 0.5, 0.05, 0.95; per-draw radius quantiles |
+| Variance model | log-threshold; first-order and pairwise fractions over morphology, diameter, distance, orientation, conductor model, pulse width; 1,000-row bootstrap |
+| Calibration | 50 morphologies x 3 diameters in NEURON with MRG axons (OSS-DBS axon files); Bland-Altman of log thresholds vs the CRRSS starter |
+| Clustering | archive/lab as random effect; cluster bootstrap by archive for all CIs |
+
 ## Related projects
 
 - `morphology-dependent-stimulation` (uniform-field tES/TMS polarisation model over NeuroMorpho populations; this project is the DBS point-field, myelinated-axon, threshold-distribution counterpart and stays self-contained).
