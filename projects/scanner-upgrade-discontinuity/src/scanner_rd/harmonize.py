@@ -152,17 +152,46 @@ class LongitudinalComBatLite:
             if idx.sum() > 2:
                 self.delta_[i] = resid[idx].std(axis=0, ddof=1) / np.clip(pooled, 1e-12, None)
         self.delta_ = np.clip(self.delta_, 1e-3, None)
+        self.grand_mean_ = X.mean(axis=0)
         return self
 
-    def transform(self, X, batch, subject=None, covars=None) -> np.ndarray:
-        X = np.asarray(X, float)
-        batch = np.asarray(batch)
-        out = X.copy()
+    def _gamma_of(self, batch: np.ndarray) -> np.ndarray:
+        G = np.zeros((len(batch), self.gamma_.shape[1]))
+        D = np.ones((len(batch), self.gamma_.shape[1]))
         for i, b in enumerate(self.batches_):
             idx = batch == b
-            if idx.any():
-                out[idx] = (X[idx] - self.gamma_[i]) / self.delta_[i]
-        return out
+            G[idx] = self.gamma_[i]
+            D[idx] = self.delta_[i]
+        unseen = ~np.isin(batch, self.batches_)
+        if unseen.any():
+            raise ValueError(f"unseen batches: {np.unique(batch[unseen])}")
+        return G, D
+
+    def transform(self, X, batch, subject=None, covars=None) -> np.ndarray:
+        """Remove scanner location/scale effects.
+
+        The scale is applied to residuals around the fitted biological part (covariates plus the
+        subject's own mean after location correction), as in ComBat, never to raw values: for a
+        feature with a large mean (e.g. 3,600 mm^3) dividing raw values by a scale of 1.02 would
+        itself create an offset of ~70 mm^3.
+        """
+        X = np.asarray(X, float)
+        batch = np.asarray(batch)
+        n = X.shape[0]
+        G, D = self._gamma_of(batch)
+        Z = _design(covars, n)[:, 1:]
+        cov_part = Z @ self.beta_cov_ if Z.shape[1] else np.zeros_like(X)
+        loc = X - G - cov_part
+        if subject is not None:
+            subject = np.asarray(subject)
+            fitted = np.empty_like(X)
+            for s in np.unique(subject):
+                idx = subject == s
+                fitted[idx] = loc[idx].mean(axis=0)
+        else:
+            fitted = np.broadcast_to(self.grand_mean_, X.shape)
+        resid = loc - fitted
+        return resid / D + fitted + cov_part
 
     def fit_transform(self, X, batch, subject, covars=None) -> np.ndarray:
         return self.fit(X, batch, subject, covars).transform(X, batch, subject, covars)

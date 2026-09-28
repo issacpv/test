@@ -100,7 +100,7 @@ def test_longitudinal_combat_and_rd_anchor():
     # gamma_B - gamma_A should be close to the true jump
     gA, gB = lc.gamma_[list(lc.batches_).index("A"), 0], lc.gamma_[list(lc.batches_).index("B"), 0]
     assert abs((gB - gA) - 80.0) < 15
-    Xh = lc.transform(X, df.scanner.to_numpy())
+    Xh = lc.transform(X, df.scanner.to_numpy(), subject=df.subject.to_numpy(), covars=df.years.to_numpy())
     tr = df.dropna(subset=["t_rel"]).copy()
     tr["y_h"] = Xh[tr.index, 0]
     res = local_linear_rd(tr, "y_h", bandwidth=2.5)

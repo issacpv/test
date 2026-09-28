@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+pandas>=2.1
+scipy>=1.11
+requests>=2.31
+pytest>=7.4
+# optional, strictly local NER (install a model with: python -m spacy download en_core_web_sm)
+# spacy>=3.7
+# optional local clinical de-identification models for the second detector arm (run offline only):
+# philter-ucsf  (rule-based; https://github.com/BCHSI/philter-ucsf)
+# presidio-analyzer>=2.2  (Microsoft Presidio, runs locally on spaCy)
+# transformers>=4.40 + torch>=2.1 for a locally cached i2b2-trained de-id model

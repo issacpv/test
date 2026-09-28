@@ -54,6 +54,51 @@ Both problems are usually handled inside one cohort and evaluated cross-sectiona
 
 Detailed download steps: `data/README.md`; scripted parts: `scripts/download_data.py`.
 
+## Cohort definitions and key variables (OASIS-3)
+
+| Definition | Rule |
+|---|---|
+| Baseline scan | first MR session with an ADRC visit within ±365 days (`align_clinical_to_scans`) |
+| Converter | CDR = 0 at baseline scan and CDR ≥ 0.5 at ≥ 2 consecutive later ADRC visits |
+| Stable control | CDR = 0 at every ADRC visit, ≥ 2 MR sessions ≥ 2 years apart |
+| Prevalent impairment | CDR ≥ 0.5 at baseline; cross-sectional associations only, excluded from trajectory models |
+| Reliability pair | two MR sessions of one participant < 180 days apart; split into same-scanner and cross-scanner subsets |
+| Session exclusions | FreeSurfer failure, eTIV or total-grey outlier > 3 MAD within scanner, missing T1w |
+| Calibration sets | (i) HCP-Lifespan out-of-fold predictions; (ii) OASIS-3 stable controls (baseline scan only); (iii) pooled |
+
+Per-session variables: `subject`, `session`, `days` (OASIS `dXXXX`), `years` since first scan, `age`, `age_baseline`, `sex`, `scanner` (TIM Trio 3T / Biograph mMR 3T / Vision 1.5T / Sonata 1.5T), `field_strength`, `mriqc_flag` (optional), `delta_raw`, `delta_<method>_<calibration>`, `cdr`, `cdr_sb`, `mmse`, `apoe4`, `education`, `converter`.
+
+## Quick start (module API)
+
+```python
+import numpy as np, pandas as pd
+from brainage_transport import (build_feature_table, ComBat, BrainAgeModel,
+                                cross_validated_predictions, BiasCorrector)
+from brainage_transport.longitudinal import align_clinical_to_scans, fit_delta_trajectory_model
+
+# 1. features: {session_id: path/to/stats}
+X_ref = build_feature_table({s: f"data/hcp_lifespan/hcp_aging/{s}/stats" for s in hcpa_sessions})
+X_oas = build_feature_table({s: f"data/oasis3/freesurfer/{s}/stats" for s in oasis_fs_ids})
+
+# 2. harmonisation fitted on controls only, transformed onto every OASIS-3 scan (no refit)
+cb = ComBat().fit(X_ctrl, scanner_ctrl, covars=np.c_[age_ctrl, sex_ctrl])
+X_oas_h = cb.transform(X_oas, scanner_oas, covars=np.c_[age_oas, sex_oas])
+
+# 3. reference model, out-of-fold predictions -> bias correction calibrated on the reference
+oof = cross_validated_predictions(X_ref, age_ref, groups=subject_ref, kind="ridge")
+bc = BiasCorrector(method="cole").fit(oof["age"], oof["pred"])
+model = BrainAgeModel(kind="ridge").fit(X_ref, age_ref)
+pred = model.predict_external(X_oas_h, age=age_oas)          # flags extrapolated ages
+pred["delta_corr"] = bc.corrected_delta(pred["age"], pred["pred"])
+
+# 4. longitudinal evaluation against CDR conversion
+scans = align_clinical_to_scans(scan_table.assign(delta_corr=pred["delta_corr"].values), clinical_table)
+res = fit_delta_trajectory_model(scans, delta_col="delta_corr", group_col="converter")
+print(res.params["years:converter"], res.pvalues["years:converter"])
+```
+
+Swap `method` / calibration set / harmonisation design in loops to fill the 240-cell grid; `bias_correction.apply_all_methods` and `longitudinal.pipeline_comparison_table` collect the results.
+
 ## Methods
 
 1. **Features** (`freesurfer_stats.py`): parse `aseg.stats` + `lh/rh.aparc.stats` into 33 subcortical volumes, 68 × {thickness, area, volume}, eTIV and global volumes (identical feature vector for all cohorts; all are FreeSurfer 5.3-HCP, which removes the FreeSurfer-version confound between HCP and OASIS-3). Optional eTIV normalisation.

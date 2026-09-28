@@ -1,0 +1,20 @@
+# Core (used by src/lifespan_norm and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31            # OpenNeuro public S3 (participants.tsv), NITRC/XNAT
+# boto3>=1.34             # HCP-YA on s3://hcp-openaccess (credentials from ConnectomeDB)
+# nda-tools>=0.3          # HCP-Aging / HCP-Development via NDA (downloadcmd)
+# openneuro-py>=2023.0    # alternative OpenNeuro downloader
+# datalad>=1.0            # alternative OpenNeuro downloader
+
+# Optional modelling / imaging
+# pcntoolkit>=0.30        # HBR / BLR normative models
+# dipy>=1.9               # DTI fitting
+# nibabel>=5.2
+# TractSeg>=2.9           # tract segmentation (needs torch)
