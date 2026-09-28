@@ -243,6 +243,7 @@ class _Event:
     callee: str = ""
     kwargs: Dict[str, Set[str]] = field(default_factory=dict)
     cls: str = ""
+    scope: str = "<module>"  # innermost enclosing function; order-based rules apply within one scope
 
 
 # --------------------------------------------------------------------------- #
@@ -343,8 +344,21 @@ class _Collector:
         self.pipeline_seen = False
         self.identifiers: Set[str] = set()
         self.strings: List[str] = []
+        self.func_ranges: List[Tuple[int, int, str]] = []
+
+    def scope_of(self, lineno: int) -> str:
+        """Innermost function whose line range contains ``lineno`` (``'<module>'`` if none)."""
+        best: Optional[Tuple[int, int, str]] = None
+        for lo, hi, name in self.func_ranges:
+            if lo <= lineno <= hi and (best is None or (hi - lo) < (best[1] - best[0])):
+                best = (lo, hi, name)
+        return best[2] if best else "<module>"
 
     def run(self) -> None:
+        # pass 0: function scopes (methods of the same class are different scopes)
+        for node in ast.walk(self.tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self.func_ranges.append((node.lineno, getattr(node, "end_lineno", node.lineno) or node.lineno, node.name))
         # pass 1: bindings and vocabulary
         for node in ast.walk(self.tree):
             if isinstance(node, ast.Name):

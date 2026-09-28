@@ -22,26 +22,43 @@ from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold, cross_val_predict
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from .metrics import auroc
 
 
-def domain_classifier_auc(Xs: np.ndarray, Xt: np.ndarray, n_splits: int = 5, seed: int = 0, max_n: int = 5000) -> float:
-    """Cross-validated AUROC of a logistic domain classifier (source = 0, target = 1)."""
+def domain_classifier_auc(
+    Xs: np.ndarray,
+    Xt: np.ndarray,
+    n_splits: int = 5,
+    seed: int = 0,
+    max_n: int = 5000,
+    groups_s: Optional[np.ndarray] = None,
+    groups_t: Optional[np.ndarray] = None,
+) -> float:
+    """Cross-validated AUROC of a logistic domain classifier (source = 0, target = 1).
+
+    Scaling is fitted inside each fold (Pipeline) and, when subject/patient
+    ``groups_*`` are given, folds are group-disjoint so that repeated rows of one
+    subject cannot inflate the AUC by identity memorisation.
+    """
     rng = np.random.default_rng(seed)
     Xs, Xt = np.asarray(Xs, float), np.asarray(Xt, float)
-    if len(Xs) > max_n:
-        Xs = Xs[rng.choice(len(Xs), max_n, replace=False)]
-    if len(Xt) > max_n:
-        Xt = Xt[rng.choice(len(Xt), max_n, replace=False)]
-    X = np.vstack([Xs, Xt])
-    y = np.r_[np.zeros(len(Xs)), np.ones(len(Xt))]
-    X = StandardScaler().fit_transform(X)
-    clf = LogisticRegression(max_iter=500, C=1.0)
-    cv = StratifiedKFold(n_splits=min(n_splits, int(min(len(Xs), len(Xt)))), shuffle=True, random_state=seed)
-    p = cross_val_predict(clf, X, y, cv=cv, method="predict_proba")[:, 1]
+    is_ = rng.choice(len(Xs), min(max_n, len(Xs)), replace=False)
+    it_ = rng.choice(len(Xt), min(max_n, len(Xt)), replace=False)
+    X = np.vstack([Xs[is_], Xt[it_]])
+    y = np.r_[np.zeros(len(is_)), np.ones(len(it_))]
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=500, C=1.0))
+    k = min(n_splits, int(min(len(is_), len(it_))))
+    if groups_s is not None and groups_t is not None:
+        groups = np.r_[np.char.add("s:", np.asarray(groups_s).astype(str)[is_]), np.char.add("t:", np.asarray(groups_t).astype(str)[it_])]
+        cv = StratifiedGroupKFold(n_splits=k, shuffle=True, random_state=seed)
+        p = cross_val_predict(clf, X, y, cv=cv, groups=groups, method="predict_proba")[:, 1]
+    else:
+        cv = StratifiedKFold(n_splits=k, shuffle=True, random_state=seed)
+        p = cross_val_predict(clf, X, y, cv=cv, method="predict_proba")[:, 1]
     return float(auroc(y, p))
 
 

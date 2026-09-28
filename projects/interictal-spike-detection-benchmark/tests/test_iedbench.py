@@ -69,13 +69,16 @@ def test_envelope_and_template_detectors_find_planted_spikes():
     m = events.match_events([e for e in ev if e.channel == "c0"], ref0, tol_s=0.1)
     assert m["recall"] > 0.7
     assert events.fp_per_minute(m["fp"], 60.0) < 10.0
-    ev_t = detectors.template_detector(X, 512.0, names, thr=0.5)
+    ev_t = detectors.template_detector(X, 512.0, names, thr=0.7)
     m_t = events.match_events([e for e in ev_t if e.channel == "c0"], ref0, tol_s=0.1)
     assert m_t["recall"] > 0.8 and m_t["precision"] > 0.5
-    # normal background produces few detections
+    # normal background produces few detections at the default threshold
     Xn = np.stack([pink_noise(int(512 * 60), np.random.default_rng(5)) for _ in range(2)])
-    fp = events.fp_per_minute(len(detectors.template_detector(Xn, 512.0, thr=0.5)), 60.0, 2)
+    fp = events.fp_per_minute(len(detectors.template_detector(Xn, 512.0)), 60.0, 2)
     assert fp < 3.0
+    # threshold sweep machinery: lowering the threshold can only add detections
+    sw = events.threshold_sweep(detectors.template_detector(X, 512.0, names, thr=0.3), ref, 60.0, 4, [0.3, 0.7])
+    assert sw.loc[0, "n_pred"] >= sw.loc[1, "n_pred"]
 
 
 def test_morphology_features_and_criteria():

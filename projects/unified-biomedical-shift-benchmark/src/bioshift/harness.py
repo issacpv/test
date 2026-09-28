@@ -114,7 +114,7 @@ def run_cell(cell: ShiftCell, benchmark: Benchmark, adapter: Adapter, model_fact
         gap = {f"gap_{k}": m_tgt[k] - m_src[k] for k in m_tgt if k in m_src and isinstance(m_tgt[k], float) and k not in ("n",)}
         rows += _rows(cell, task.modality, "gap", d, gap, extra)
         if diagnostics:
-            diag = {"domain_auc": domain_classifier_auc(src_test.X, tgt.X, seed=seed)}
+            diag = {"domain_auc": domain_classifier_auc(src_test.X, tgt.X, seed=seed, groups_s=src_test.groups, groups_t=tgt.groups)}
             diag["proxy_a_distance"] = proxy_a_distance(diag["domain_auc"])
             mmd, p = mmd_rbf(src_test.X, tgt.X, n_perm=50, seed=seed)
             diag["mmd"], diag["mmd_p"] = mmd, p
@@ -190,4 +190,4 @@ def negative_control(task_id: str, domain_id: str, benchmark: Benchmark, adapter
     model = model_factory(task.task_type).fit(a.X[~inner], a.y[~inner], a.groups[~inner])
     m_in = evaluate(task.task_type, a.y[inner], model.predict(a.X[inner]), a.groups[inner], a.meta.iloc[np.flatnonzero(inner)].reset_index(drop=True), task.subgroup_columns, n_boot, seed)
     m_out = evaluate(task.task_type, b.y, model.predict(b.X), b.groups, b.meta, task.subgroup_columns, n_boot, seed)
-    return {"in_domain": m_in["primary"], "other_half": m_out["primary"], "gap": m_out["primary"] - m_in["primary"], "domain_auc": domain_classifier_auc(a.X, b.X, seed=seed)}
+    return {"in_domain": m_in["primary"], "other_half": m_out["primary"], "gap": m_out["primary"] - m_in["primary"], "domain_auc": domain_classifier_auc(a.X, b.X, seed=seed, groups_s=a.groups, groups_t=b.groups)}

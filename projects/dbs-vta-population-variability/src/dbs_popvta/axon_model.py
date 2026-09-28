@@ -182,13 +182,27 @@ def activating_function(ve_mV: np.ndarray, L: csc_matrix) -> np.ndarray:
 
 
 def threshold_current(axon: MyelinatedAxon, ve_unit_mV: np.ndarray, pulse: Pulse = Pulse(), lo: float = 0.0,
-                      hi: float = 20.0, rel_tol: float = 0.02, max_iter: int = 30, dt: float = 0.005) -> float:
-    """Threshold amplitude (same unit as the field's amplitude, e.g. mA) by bisection.
+                      hi: float = 20.0, rel_tol: float = 0.02, max_iter: int = 30, dt: float = 0.005,
+                      start: float = 0.05, growth: float = 2.0) -> float:
+    """Threshold amplitude (same unit as the field's amplitude, e.g. mA).
 
-    Returns ``inf`` if ``hi`` does not excite the axon.
+    Because excitation is not monotonic at very high amplitudes (anodal surround / depolarisation
+    block), the bracket is found by scanning upward geometrically from ``start`` to the first
+    spiking amplitude (or ``hi``) and bisection then refines it. Returns ``inf`` if nothing up to
+    ``hi`` excites the axon.
     """
-    if not axon.simulate(ve_unit_mV, hi, pulse, dt=dt)["spiked"]:
-        return float("inf")
+    amp, prev, found = min(start, hi), lo, False
+    while amp <= hi:
+        if axon.simulate(ve_unit_mV, amp, pulse, dt=dt)["spiked"]:
+            found = True
+            break
+        prev, amp = amp, amp * growth
+    if not found:
+        if amp / growth < hi and axon.simulate(ve_unit_mV, hi, pulse, dt=dt)["spiked"]:
+            prev, amp = amp / growth, hi
+        else:
+            return float("inf")
+    lo, hi = prev, amp
     for _ in range(max_iter):
         mid = 0.5 * (lo + hi)
         if axon.simulate(ve_unit_mV, mid, pulse, dt=dt)["spiked"]:

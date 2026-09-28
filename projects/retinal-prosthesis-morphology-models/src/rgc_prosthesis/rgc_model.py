@@ -158,11 +158,28 @@ class RGCCable:
 
 def threshold_current(cell: RGCCable, ve_unit_mV: np.ndarray, pulse: Pulse = Pulse(), lo: float = 0.0,
                       hi: float = 1000.0, rel_tol: float = 0.03, max_iter: int = 25, dt: float = 0.01,
-                      t_end: Optional[float] = None) -> float:
-    """Threshold electrode current (uA) by bisection on the propagated-spike criterion; inf if ``hi`` fails."""
+                      t_end: Optional[float] = None, start: float = 1.0, growth: float = 2.0) -> float:
+    """Threshold electrode current (uA) on the propagated-spike criterion.
+
+    Excitation is not monotonic in amplitude (strong stimuli cause depolarisation / anodal block),
+    so the bracket is found by scanning upward geometrically from ``start`` until the first
+    spiking amplitude (or ``hi``), and bisection then refines between the last non-spiking and the
+    first spiking amplitude. Returns ``inf`` if nothing up to ``hi`` excites the cell.
+    """
     t_end = t_end if t_end is not None else pulse.duration_ms + 2.5
-    if not cell.run(ve_unit_mV, hi, pulse, dt=dt, t_end=t_end)["spiked"]:
-        return float("inf")
+    amp, prev = min(start, hi), lo
+    found = False
+    while amp <= hi:
+        if cell.run(ve_unit_mV, amp, pulse, dt=dt, t_end=t_end)["spiked"]:
+            found = True
+            break
+        prev, amp = amp, amp * growth
+    if not found:
+        if amp / growth < hi and cell.run(ve_unit_mV, hi, pulse, dt=dt, t_end=t_end)["spiked"]:
+            prev, amp = amp / growth, hi
+        else:
+            return float("inf")
+    lo, hi = prev, amp
     for _ in range(max_iter):
         mid = 0.5 * (lo + hi)
         if cell.run(ve_unit_mV, mid, pulse, dt=dt, t_end=t_end)["spiked"]:

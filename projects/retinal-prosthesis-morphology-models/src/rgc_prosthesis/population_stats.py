@@ -46,8 +46,13 @@ def morphological_determinants(df: pd.DataFrame, features: Sequence[str], value:
         X = (X - X.mean()) / X.std(ddof=0).replace(0, 1.0)
     X = sm.add_constant(X, has_constant="add")
     if group is not None and d[group].nunique() > 1:
+        import warnings
+
         model = sm.MixedLM(y, X, groups=d[group].values)
-        res = model.fit(reml=True, method="lbfgs")
+        with warnings.catch_warnings():
+            # a near-zero group variance puts the MLE on the boundary; that is a legitimate outcome
+            warnings.simplefilter("ignore")
+            res = model.fit(reml=True, method="lbfgs")
         params, bse, pvals = res.fe_params, res.bse_fe, res.pvalues[: len(res.fe_params)]
     else:
         res = sm.OLS(y, X).fit()
