@@ -1,0 +1,13 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<3
+scikit-learn>=1.3
+wfdb>=4.1
+vitaldb>=1.4
+h5py>=3.10
+requests>=2.31
+matplotlib>=3.8
+tqdm>=4.66
+torch>=2.1          # only needed for models.SmallCNN1D / HybridPTTCNN
+duckdb>=0.10        # only needed for the MIMIC-IV inputevents bolus table
+pytest>=7.4

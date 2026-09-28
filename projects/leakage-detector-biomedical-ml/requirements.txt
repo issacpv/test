@@ -1,0 +1,8 @@
+numpy>=1.26,<3
+pandas>=2.1
+requests>=2.31
+pytest>=7.4
+# optional: statistics for the prevalence/performance association analysis
+# statsmodels>=0.14
+# optional: PDF text extraction for mining GitHub links from papers
+# pymupdf>=1.23

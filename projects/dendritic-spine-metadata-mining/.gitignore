@@ -1,0 +1,34 @@
+# data and outputs are never committed
+data/*
+!data/README.md
+outputs/
+results/
+*.nwb
+*.nii
+*.nii.gz
+*.edf
+*.fif
+*.gdf
+*.mat
+*.swc
+*.CNG.swc
+*.jsonl
+*.parquet
+*.h5
+*.hdf5
+*.zip
+*.tar.gz
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+# secrets / environment
+.env
+*.pem
+aws_credentials*
+.DS_Store

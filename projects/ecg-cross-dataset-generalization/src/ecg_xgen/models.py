@@ -93,26 +93,42 @@ class HandcraftedFeatures:
         return np.where(np.isfinite(F), F, med)
 
 
-def fit_logistic_baseline(F: np.ndarray, Y: np.ndarray, C: float = 1.0, seed: int = 0) -> Any:
-    """One-vs-rest logistic regression on standardised handcrafted features; returns a fitted sklearn Pipeline."""
+@dataclass
+class OvRLogistic:
+    """One-vs-rest logistic regression over multi-hot labels; classes without positives yield 0 probability."""
+
+    scaler: Any
+    models: dict[int, Any]
+    n_classes: int
+
+    def predict_proba(self, F: np.ndarray) -> np.ndarray:
+        Z = self.scaler.transform(F)
+        P = np.zeros((F.shape[0], self.n_classes), dtype=np.float32)
+        for j, m in self.models.items():
+            P[:, j] = m.predict_proba(Z)[:, 1]
+        return P
+
+
+def fit_logistic_baseline(F: np.ndarray, Y: np.ndarray, C: float = 1.0, seed: int = 0) -> OvRLogistic:
+    """Fit one L2-logistic model per harmonised class on standardised handcrafted features."""
     from sklearn.linear_model import LogisticRegression
-    from sklearn.multiclass import OneVsRestClassifier
-    from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    clf = OneVsRestClassifier(LogisticRegression(C=C, max_iter=2000, random_state=seed))
-    pipe = make_pipeline(StandardScaler(), clf)
     Y = np.asarray(Y)
-    keep = Y.sum(axis=0) > 0  # sklearn cannot fit a class with no positives
-    pipe.fit(F, Y[:, keep])
-    pipe.kept_classes_ = np.where(keep)[0]  # type: ignore[attr-defined]
-    return pipe
+    sc = StandardScaler().fit(F)
+    Z = sc.transform(F)
+    models: dict[int, Any] = {}
+    for j in range(Y.shape[1]):
+        if 0 < Y[:, j].sum() < len(Y):  # need both classes present
+            models[j] = LogisticRegression(C=C, max_iter=2000, random_state=seed).fit(Z, Y[:, j])
+    return OvRLogistic(sc, models, Y.shape[1])
 
 
-def predict_proba_full(pipe: Any, F: np.ndarray, n_classes: int) -> np.ndarray:
-    """Probability matrix (n, n_classes) with 0.0 for classes that had no positives at fit time."""
-    P = np.zeros((F.shape[0], n_classes), dtype=np.float32)
-    P[:, pipe.kept_classes_] = pipe.predict_proba(F)
+def predict_proba_full(model: OvRLogistic, F: np.ndarray, n_classes: int | None = None) -> np.ndarray:
+    """Probability matrix (n, n_classes); kept for API symmetry with the deep models."""
+    P = model.predict_proba(F)
+    if n_classes is not None and n_classes != P.shape[1]:
+        raise ValueError("n_classes does not match the fitted model")
     return P
 
 

@@ -224,7 +224,9 @@ def build_feature_table(
             records[sid] = load_subject_features(d, aparc_name=aparc_name)
         except (FileNotFoundError, ValueError):
             records[sid] = pd.Series(dtype=float)
-    df = pd.DataFrame.from_dict(records, orient="index")
+    # DataFrame(dict-of-Series) keeps keys whose Series is empty (all-NaN
+    # column); ``from_dict(orient="index")`` would silently drop them.
+    df = pd.DataFrame(records).T.astype(float)
     df.index.name = "session_id"
     if icv_normalise and "global_eTIV" in df.columns:
         vol_cols = [c for c in df.columns if c.startswith("aseg_") or c.endswith("_GrayVol")]

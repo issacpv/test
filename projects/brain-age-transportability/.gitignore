@@ -1,0 +1,33 @@
+# data & outputs (never commit participant-level data)
+data/*
+!data/README.md
+outputs/
+results/
+*.nii
+*.nii.gz
+*.mgz
+*.stats
+*.zip
+*.csv
+*.tsv
+*.parquet
+*.h5
+*.pkl
+
+# credentials
+.env
+*.pem
+.aws/
+.nda/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.mypy_cache/

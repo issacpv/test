@@ -1,0 +1,16 @@
+# Core (used by src/sexstrat_brainage and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access (scripts/download_data.py)
+requests>=2.31
+
+# Optional
+# nibabel>=5.2
+# pingouin>=0.5        # ICC cross-check
+# neuroHarmonize>=2.3
+# torch>=2.2           # CNN arm (pyment / DeepBrainNet retraining)

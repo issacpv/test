@@ -19,7 +19,7 @@ Deep ECG classifiers reach cardiologist-level AUROC *within* a dataset (Ribeiro 
 
 - PTB-XL benchmark and its cross-validation protocol (Wagner et al., 2020, Sci Data; Strodthoff et al., 2021, IEEE JBHI).
 - CinC 2020/2021 Challenge: pooled multi-source training, hidden test sets from other sources; the Challenge reports overall generalisation but not a decomposition of the drop (Perez Alday et al., 2020; Reyna et al., 2021).
-- CODE-15% and the CODE-II release (Ribeiro et al., 2021, Zenodo; Nat Digit Med 2026 CODE-II paper) show that Brazilian pre-training transfers to PTB-XL and CPSC-2018 after fine-tuning; no zero-shot population-shift analysis.
+- CODE-15% (Ribeiro et al., 2021, Zenodo) and the CODE-II release (npj Digit Med 2026, s41746-026-02704-4) show that Brazilian pre-training transfers to PTB-XL and CPSC-2018 after fine-tuning; no zero-shot population-shift analysis.
 - OpenECG (arXiv:2503.00711, 2025) benchmarks self-supervised ECG models on 1.2M public records with leave-one-dataset-out experiments, but reports aggregate scores only, without label-mapping sensitivity, subgroup parity or clinical-outcome validation.
 - "Benchmarking ECG FMs: a reality check across clinical tasks" (arXiv:2509.25095; ICLR 2026) evaluates eight foundation models on 26 tasks/12 datasets and finds gaps on outcome prediction, again on in-distribution splits.
 - "Looking beyond accuracy: a holistic benchmark of ECG foundation models" (Filice et al., 2026, arXiv:2601.21830) studies embeddings across cross-continental datasets with SHAP/UMAP, but does not quantify subgroup parity or the contribution of label harmonisation.
@@ -70,6 +70,39 @@ Population contrast: PTB-XL median age ~61 y; Chapman-Ningbo ~51 y; CODE-15% you
 8. **Clinical-outcome validation**: fine-tune or linearly probe the harmonised-diagnosis models on MIMIC-IV-ECG for (i) 1-year all-cause mortality (Cox / discrete-time), (ii) troponin-T > 99th percentile URL within 24 h of the ECG, using the first ECG per hospitalisation; patient-level splits.
 
 Tools: `wfdb`, `h5py`, `scipy`, `numpy`, `pandas`, `scikit-learn`, `torch` (optional), `lifelines` (optional, survival), `statsmodels` (optional).
+
+### Harmonised label set (v1, `ecg_xgen.labels`)
+
+| Class | SNOMED-CT (strict) | Added under lenient | PTB-XL SCP | CODE-15% column | Sources with the label |
+|---|---|---|---|---|---|
+| NORM | 426783006 (sinus rhythm, no other label) | - | NORM, SR | normal_ecg | all |
+| AF | 164889003 | - | AFIB | AF | all |
+| AFL | 164890007 | - | AFLT | - | all except CODE |
+| AVB1 | 270492004 | - | 1AVB | 1dAVb | all |
+| RBBB | 59118001 | 713427006 (CRBBB), 713426002 (IRBBB) | CRBBB (+IRBBB lenient) | RBBB | all |
+| LBBB | 164909002 | 733534002 (CLBBB) | CLBBB (+ILBBB lenient) | LBBB | all |
+| PVC | 427172004 | 17338001 (VPB) | PVC | - | all except CODE |
+| PAC | 284470004 | 63593006 (SVPB) | PAC | - | all except CODE |
+| SB | 426177001 | 426627000 (bradycardia) | SBRAD | SB | all |
+| STACH | 427084000 | - | STACH | ST | all |
+| LQT | 111975006 | - | LNGQT | - | all except CODE |
+| LVH | 164873001 | - | LVH | - | all except CODE |
+
+Codes follow the Challenge-2021 `dx_mapping_scored/unscored.csv`; `labels.check_against_challenge_table()` flags any code absent from those files after download. Per-class Cohen's kappa between `strict` and `lenient` is reported with every leaderboard table.
+
+### Transfer grid
+
+| Factor | Levels | Purpose |
+|---|---|---|
+| Source | PTB-XL, Chapman, Ningbo, Georgia, CODE-15% (+ pooled leave-one-out) | training population |
+| Target | same five + CPSC-2018 | evaluation population |
+| Mapping policy | strict, lenient, superclass | label component |
+| Acquisition harmonisation | off / on (resample + band-pass + source z-score) | device component |
+| Demographic reweighting | off / on (age, sex density ratio) | population component |
+| Model | handcrafted+LR, 1D-ResNet-18, ECG-FM, HuBERT-ECG, ECGFounder | robustness of pre-training |
+| Seeds | 3 | variance |
+
+Primary cells: PTB-XL -> CODE-15% (oldest -> youngest population), Chapman -> Ningbo (same device family), PTB-XL -> Georgia (different country, similar carts).
 
 ## Evaluation & statistics
 

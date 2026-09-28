@@ -1,0 +1,18 @@
+# Core (used by src/hemo_aging and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1,<4
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # OpenNeuro GraphQL + NITRC/XNAT REST (scripts/download_data.py)
+
+# Imaging pipeline (production runs; not needed for the tests)
+nibabel>=5.2
+nilearn>=0.10
+rapidtide>=2.9          # production lag mapping (Frederick lab)
+# rsHRF>=1.1            # resting-state HRF toolbox (pip name: rsHRF)
+# neuromaps>=0.0.5      # spin tests for parcel-map comparisons
+# pcntoolkit>=0.29      # GAMLSS/BLR normative cross-check (optional)

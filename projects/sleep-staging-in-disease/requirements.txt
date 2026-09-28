@@ -1,0 +1,16 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# EDF/EDF+ reading and pretrained stagers (not needed for the tests)
+# mne>=1.6
+# pyedflib>=0.1.36
+# yasa>=0.6.4
+# lightgbm>=4.0
+# u-sleep via https://github.com/perslev/U-Time (separate environment recommended)

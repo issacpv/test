@@ -1,0 +1,18 @@
+# Core numerics / stats (used by src/ and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.4        # SplineTransformer for the normative basis
+statsmodels>=0.14        # QuantReg, OLS, TTestIndPower
+
+# Data access
+requests>=2.31           # OpenNeuro GraphQL + MRIQC WebAPI
+pyarrow>=15              # parquet caches of the IQM tables
+
+# Optional: local MRIQC runs on datasets missing from the WebAPI, and DataLad clones
+# datalad>=1.0
+# openneuro-py>=2024.1
+# mriqc  (run via Docker/Apptainer: nipreps/mriqc)
+
+# Testing
+pytest>=8.0

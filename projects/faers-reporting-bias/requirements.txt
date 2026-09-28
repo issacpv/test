@@ -1,0 +1,16 @@
+# Core pipeline
+numpy>=1.24,<3
+pandas>=2.0,<3
+scipy>=1.10
+statsmodels>=0.14
+requests>=2.31
+# Analysis / plotting
+scikit-learn>=1.3
+matplotlib>=3.7
+# Survey-weighted MEPS aggregation (optional; pandas suffices for point estimates)
+# samplics>=0.4
+# Testing
+pytest>=7.4
+# Optional: reading MEPS .xlsx / SAS transport files
+openpyxl>=3.1
+pyreadstat>=1.2

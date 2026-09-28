@@ -1,0 +1,14 @@
+data/
+outputs/
+*.nii
+*.nii.gz
+*.gii
+*.h5
+*.parquet
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.venv/
+*.egg-info/

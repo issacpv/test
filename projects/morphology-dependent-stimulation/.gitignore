@@ -1,0 +1,52 @@
+# Data and derived artefacts - never commit these
+data/
+outputs/
+results/
+cache/
+
+# Morphology, imaging and model files
+*.swc
+*.CNG.swc
+*.nii
+*.nii.gz
+*.mgz
+*.msh
+*.nwb
+*.edf
+*.h5
+*.hdf5
+*.npz
+*.pkl
+
+# NEURON compiled mechanisms
+x86_64/
+arm64/
+*.o
+*.c.mod
+nrnivmodl.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

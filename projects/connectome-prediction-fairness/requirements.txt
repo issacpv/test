@@ -1,0 +1,13 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.4
+statsmodels>=0.14
+nibabel>=5.2
+nilearn>=0.10.3
+boto3>=1.34
+matplotlib>=3.8
+seaborn>=0.13
+pytest>=8.0
+# optional: HCP parcellation with Connectome Workbench (wb_command) is a system install
+# optional: pingouin>=0.5 for ICC / reliability estimates

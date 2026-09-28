@@ -1,0 +1,17 @@
+# Core (used by src/tau_proxy and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access (scripts/download_data.py: NITRC / XNAT Central REST)
+requests>=2.31
+
+# Imaging (optional; NIfTI handling, WMH volumes, CNN arm)
+# nibabel>=5.2
+# monai>=1.3
+# torch>=2.2
+# antspyx>=0.4
+# neuroHarmonize>=2.3

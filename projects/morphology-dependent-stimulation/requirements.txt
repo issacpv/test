@@ -1,0 +1,27 @@
+# Core numerics and stats (what the code in src/ actually imports)
+numpy>=1.26,<3
+scipy>=1.11,<2
+pandas>=2.1,<3
+statsmodels>=0.14,<0.16
+requests>=2.31,<3
+
+# Testing
+pytest>=7.4,<9
+
+# --- Optional, install as needed ---------------------------------------------
+# NEURON backend for the spiking-threshold calibration subset
+#   (morph_stim.neuron_driver; the numpy surrogate needs none of this)
+# neuron>=8.2,<9
+#
+# Allen Cell Types Database client (morphologies + biophysical model packages).
+# Pins its own numpy/pandas range, so install in a separate environment if it
+# conflicts with the versions above.
+# allensdk>=2.16
+#
+# E-field head models for the field-direction prior. Installed via the SimNIBS
+# platform installer on most systems rather than pip.
+# simnibs>=4.1
+#
+# Reading SimNIBS .msh / NIfTI output if the field prior is computed here
+# nibabel>=5.1,<6
+# meshio>=5.3,<6

@@ -1,0 +1,37 @@
+# data & outputs (never commit HCP / ABCD / OpenNeuro files)
+data/*
+!data/README.md
+outputs/
+results/
+*.nii
+*.nii.gz
+*.dtseries.nii
+*.ptseries.nii
+*.dscalar.nii
+*.edf
+*.nwb
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.mat
+*.csv
+*.tsv
+!tests/**/*.csv
+
+# credentials
+.env
+*.pem
+credentials*
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+.venv/
+venv/

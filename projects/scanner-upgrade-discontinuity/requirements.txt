@@ -1,0 +1,14 @@
+# Core (used by src/scanner_rd and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31          # NITRC/XNAT REST downloads (scripts/download_data.py)
+
+# Optional
+# neuroHarmonize>=2.3   # ComBat-GAM cross-check
+# nibabel>=5.2          # only if you re-run FreeSurfer / read NIfTI
+# rdrobust>=1.1         # robust bias-corrected RD CIs as a second opinion

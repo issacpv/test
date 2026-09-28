@@ -1,0 +1,41 @@
+# data and outputs are never committed
+data/raw/
+data/processed/
+data/external/
+data/*.zip
+data/*.csv
+data/*.xlsx
+data/*.parquet
+data/*.pdf
+!data/README.md
+outputs/
+figures/
+models/
+*.log
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+build/
+dist/
+
+# secrets / env
+.env
+*.env
+.envrc
+
+# large binaries
+*.nii.gz
+*.edf
+*.nwb
+*.h5
+*.hdf5
+*.pkl
+*.npz
+*.pt
+*.safetensors

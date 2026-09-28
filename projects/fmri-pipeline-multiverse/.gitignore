@@ -1,0 +1,38 @@
+# data & outputs
+data/*
+!data/README.md
+outputs/
+results/
+work/
+*.nii
+*.nii.gz
+*.gii
+*.h5
+*.edf
+*.nwb
+*.npy
+*.npz
+*.mat
+*.tsv
+*.csv
+!tests/**/*.tsv
+
+# datalad / git-annex
+.datalad/
+.git-annex/
+
+# credentials
+.env
+credentials*
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+.venv/
+venv/

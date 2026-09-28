@@ -192,6 +192,7 @@ class OpenFDAClient:
         n = 0
         skip = 0
         next_url: Optional[str] = None
+        followed_link = False  # once we are in search_after mode, never fall back to skip
         while True:
             if next_url is not None:
                 resp = self._get(next_url, params=None)
@@ -212,11 +213,15 @@ class OpenFDAClient:
             m = _LINK_NEXT_RE.search(link) if link else None
             if m:
                 next_url = m.group(1)
+                followed_link = True
                 continue
+            if followed_link:
+                # last search_after page has no rel="next" -> exhausted
+                return
             # skip-based fallback (only valid up to 25 000)
             skip += len(results)
             total = payload.get("meta", {}).get("results", {}).get("total", None)
-            if skip >= 25000 or (total is not None and skip >= int(total)):
+            if skip >= 25000 or (total is not None and skip >= int(total)) or len(results) < params["limit"]:
                 return
             next_url = None
 

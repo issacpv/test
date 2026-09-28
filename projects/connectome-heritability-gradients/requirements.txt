@@ -1,0 +1,17 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.4
+statsmodels>=0.14
+nibabel>=5.2
+brainspace>=0.1.10
+abagen>=0.1.4
+neuromaps>=0.0.5
+boto3>=1.34
+matplotlib>=3.8
+pytest>=8.0
+# optional cross-checks
+# pingouin>=0.5           # ICC for test-retest reliability
+# netneurotools>=0.2      # alternative spin implementations
+# MRtrix3 / Connectome Workbench are system installs (tractography, cifti-parcellate)
+# OpenMx (R) for bivariate Cholesky ACE confirmation

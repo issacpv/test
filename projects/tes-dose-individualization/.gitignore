@@ -1,0 +1,16 @@
+data/*
+!data/README.md
+outputs/
+*.nii
+*.nii.gz
+*.msh
+*.edf
+*.nwb
+*.mat
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.env
+.venv/
+*.egg-info/
+.pytest_cache/

@@ -1,0 +1,17 @@
+# Core numerics / stats (used by src/ and tests)
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.4
+statsmodels>=0.14
+
+# Data access
+requests>=2.31
+boto3>=1.34          # HCP-YA S3 bucket (hcp-openaccess) with ConnectomeDB-issued keys
+# nda-tools>=0.2.27  # HCP-Aging / HCP-Development via NDA `downloadcmd` (install separately if needed)
+
+# Optional comparators
+neuroCombat>=0.2.12  # reference ComBat implementation (wrapped in harmonize.py)
+
+# Testing
+pytest>=8.0

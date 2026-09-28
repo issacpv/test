@@ -211,6 +211,9 @@ def planarity(points: np.ndarray) -> float:
 
 
 # ---------------------------------------------------------------------- Sholl
+_trapezoid = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+
+
 def sholl_profile(tree: SWCTree, radii: Sequence[float], neurite_types: Optional[Iterable[int]] = DENDRITE_TYPES,
                   center: Optional[np.ndarray] = None) -> np.ndarray:
     """Number of segments crossing concentric spheres of the given radii (classic Sholl).
@@ -245,7 +248,7 @@ def sholl_summary(tree: SWCTree, step: float = 10.0, neurite_types: Optional[Ite
     return {
         "sholl_peak": float(prof.max()) if prof.size else 0.0,
         "sholl_peak_radius": float(radii[k]) if prof.size else 0.0,
-        "sholl_auc": float(np.trapz(prof, radii)) if prof.size > 1 else 0.0,
+        "sholl_auc": float(_trapezoid(prof, radii)) if prof.size > 1 else 0.0,
         "sholl_radius_max": rmax,
     }
 

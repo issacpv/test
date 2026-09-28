@@ -1,0 +1,15 @@
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.3
+statsmodels>=0.14
+duckdb>=0.10
+pyarrow>=14
+matplotlib>=3.8
+tqdm>=4.66
+requests>=2.31
+pytest>=7.4
+# optional, for full posteriors / population refits:
+# pymc>=5.10
+# cmdstanpy>=1.2
+# pharmpy-core>=1.0

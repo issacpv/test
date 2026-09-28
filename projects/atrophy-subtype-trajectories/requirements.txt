@@ -1,0 +1,15 @@
+# Core (used by src/atrophy_subtypes and tests)
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11
+scikit-learn>=1.4
+statsmodels>=0.14
+pytest>=7.4
+
+# Data access
+requests>=2.31            # NITRC/XNAT REST (scripts/download_data.py)
+
+# Optional
+# pySuStaIn @ git+https://github.com/ucl-pond/pySuStaIn.git   # reference SuStaIn implementation
+# nibabel>=5.2              # reading WMH masks / FLAIR
+# neuroHarmonize>=2.3       # scanner harmonization sensitivity analysis

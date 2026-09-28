@@ -1,0 +1,39 @@
+# data and outputs
+data/
+!data/README.md
+outputs/
+results/
+figures/
+*.nwb
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.parquet
+*.pkl
+*.zarr/
+*.nii.gz
+*.edf
+*.zip
+*.tar.gz
+ecephys_cache_dir/
+visual_behavior_neuropixels_cache/
+ONE/
+.one/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# environments / secrets
+.env
+.venv/
+venv/
+*.log
+.DS_Store

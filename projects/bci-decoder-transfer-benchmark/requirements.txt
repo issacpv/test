@@ -1,0 +1,16 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+statsmodels>=0.14
+requests>=2.31
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# EEG / BCI stack (needed for real data, not for the tests)
+mne>=1.6
+moabb>=1.1
+pyriemann>=0.6
+# deep arms (optional)
+# braindecode>=0.8
+# torch>=2.1

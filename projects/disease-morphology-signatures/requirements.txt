@@ -1,0 +1,13 @@
+numpy>=1.26,<3
+scipy>=1.11
+pandas>=2.1
+statsmodels>=0.14
+requests>=2.31
+pyarrow>=14.0
+tqdm>=4.66
+matplotlib>=3.8
+pytest>=7.4
+# optional cross-check of morphometrics
+# neurom>=3.2
+# optional active-model follow-ups
+# neuron>=8.2

@@ -1,0 +1,39 @@
+# data and outputs are never committed
+data/raw/
+data/processed/
+data/external/
+data/*.zip
+data/*.csv
+data/*.parquet
+!data/README.md
+!data/dsc_events_seed.csv
+outputs/
+figures/
+*.log
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+build/
+dist/
+
+# secrets / env
+.env
+*.env
+.envrc
+
+# large binary formats (never in git)
+*.nii.gz
+*.edf
+*.nwb
+*.h5
+*.hdf5
+*.pkl
+*.npz
+*.sas7bdat
+*.xpt

@@ -1,0 +1,22 @@
+# Core pipeline
+numpy>=1.24,<3
+pandas>=2.0,<3
+pyarrow>=14
+scipy>=1.10
+requests>=2.31
+networkx>=3.1
+scikit-learn>=1.3
+statsmodels>=0.14
+# Survival analysis (preferred backend; statsmodels PHReg is the fallback)
+lifelines>=0.28
+# 510(k) summary PDFs
+pypdf>=4.0
+# Fuzzy matching accelerator (optional; difflib fallback)
+rapidfuzz>=3.5
+# Optional text embeddings
+# sentence-transformers>=2.7
+# Plotting
+matplotlib>=3.7
+# Testing
+pytest>=7.4
+openpyxl>=3.1

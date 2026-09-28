@@ -1,0 +1,42 @@
+# data and outputs are never committed
+data/*
+!data/README.md
+outputs/
+results/
+ecephys_cache_dir/
+*.csv
+*.csv.gz
+*.parquet
+*.h5
+*.h5ad
+*.hdf5
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.nwb
+*.nii.gz
+*.nrrd
+*.edf
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+build/
+dist/
+
+# env / secrets
+.env
+.envrc
+*.secret
+.venv/
+venv/
+
+# editors
+.vscode/
+.idea/
+*.swp
