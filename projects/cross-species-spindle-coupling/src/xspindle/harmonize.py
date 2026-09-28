@@ -19,6 +19,8 @@ from . import coupling as cp
 from . import detect as dt
 from . import spectrum as sp
 
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")  # numpy 1.26 / 2.x compatibility
+
 
 @dataclass(frozen=True)
 class Preset:
@@ -79,7 +81,7 @@ def crude_nrem_mask(x: np.ndarray, fs: float, epoch_s: float = 10.0, delta=(0.5,
     f, p = welch(ep, fs=fs, nperseg=min(int(4 * fs), n), axis=1)
     def _bp(lo, hi):
         s = (f >= lo) & (f < hi)
-        return np.trapezoid(p[:, s], f[s], axis=1)
+        return _trapz(p[:, s], f[s], axis=1)
     d = np.log(_bp(*delta) + 1e-12)
     t = np.log(_bp(*theta) + 1e-12)
     dz = (d - d.mean()) / (d.std() + 1e-12)

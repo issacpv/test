@@ -13,6 +13,8 @@ import numpy as np
 from scipy.signal import welch
 from sklearn.ensemble import HistGradientBoostingClassifier
 
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")  # numpy 1.26 / 2.x compatibility
+
 BANDS: Dict[str, Tuple[float, float]] = {
     "delta": (0.5, 4.0), "theta": (4.0, 8.0), "alpha": (8.0, 12.0),
     "sigma": (12.0, 16.0), "beta": (16.0, 30.0),
@@ -45,12 +47,12 @@ def spectral_features(epochs: np.ndarray, fs: float, nperseg_s: float = 4.0) -> 
     """
     nperseg = int(round(fs * nperseg_s))
     f, pxx = welch(epochs, fs=fs, nperseg=min(nperseg, epochs.shape[1]), axis=1)
-    total = np.trapezoid(pxx[:, (f >= 0.5) & (f <= 30.0)], f[(f >= 0.5) & (f <= 30.0)], axis=1) + 1e-12
+    total = _trapz(pxx[:, (f >= 0.5) & (f <= 30.0)], f[(f >= 0.5) & (f <= 30.0)], axis=1) + 1e-12
     feats: List[np.ndarray] = []
     names: List[str] = []
     for name, (lo, hi) in BANDS.items():
         sel = (f >= lo) & (f < hi)
-        bp = np.trapezoid(pxx[:, sel], f[sel], axis=1) + 1e-12
+        bp = _trapz(pxx[:, sel], f[sel], axis=1) + 1e-12
         feats.append(np.log(bp))
         names.append(f"log_{name}")
         feats.append(bp / total)

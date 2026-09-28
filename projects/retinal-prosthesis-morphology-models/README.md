@@ -107,6 +107,55 @@ No credentialed data are involved.
 - No human subjects or animals are involved in this computational work; empirical comparison data come from published studies (cite; request raw data through the authors' stated channels).
 - Do not commit SWC files, field volumes or threshold tables (`data/` and `outputs/` are git-ignored).
 
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py --sample          # NeuroMorpho RGC metadata + 10 SWC files
+PYTHONPATH=src pytest -q tests                    # synthetic tests (no network, no NEURON)
+```
+
+```python
+import glob
+import pandas as pd
+from rgc_prosthesis import (load_swc, compartmentalize, morphometrics, synthesize_axon, Electrode, Pulse,
+                            RGCCable, threshold_current, type_threshold_summary, morphological_determinants)
+from rgc_prosthesis.swc_morph import orient_z
+
+rows = []
+for f in glob.glob("data/neuromorpho/swc/*.CNG.swc"):
+    swc = orient_z(load_swc(f))
+    m = morphometrics(swc)
+    for ais_start in (20.0, 40.0, 60.0):                           # AIS geometry as a design factor
+        cell = RGCCable(compartmentalize(synthesize_axon(swc, ais_start_um=ais_start), max_len_um=10.0))
+        cell.equilibrate()
+        ve = Electrode.epiretinal(height_um=30, radius_um=50).unit_potential(cell.comp.xyz)
+        thr = threshold_current(cell, ve, Pulse(0.1, "biphasic"))
+        rows.append({"cell_id": f, "cell_type": "TODO from metadata", "ais_start_um": ais_start,
+                     "threshold_uA": thr, **m})
+df = pd.DataFrame(rows)
+print(type_threshold_summary(df))
+print(morphological_determinants(df, ["soma_diam_um", "dend_field_diam_um", "strat_depth_um", "ais_start_um"])["table"])
+```
+
+## Pre-specified operational definitions
+
+| Item | Definition (frozen before the sweeps) |
+|---|---|
+| Cell set | Eyewire (type-labelled, 47 types), Sümbül 2014 (genetic lines) and NeuroMorpho RGCs with >= 500 um dendritic length and a soma; species and dataset recorded |
+| Orientation | z flipped so dendrites are at positive z (IPL) relative to the soma; axon synthesised in the NFL at soma_z - 10 um toward the optic disc (axon map or fixed direction) |
+| AIS design | start in {20, 40, 60} um, length in {20, 30, 40} um, diameter 1.0 um; hillock 2.0 um; distal axon 0.7 um, 1.5 mm |
+| Compartments | <= 10 um cylinders; soma one equivalent cylinder (L = d) |
+| Kinetics | FM97 Na/K/leak; densities (mS/cm^2) dendrite 25/12, soma 80/18, hillock 150/25, AIS 400/40, axon 100/25; g_L 0.15, balanced E_L; 5-channel FM in NEURON for calibration |
+| Electrodes | epiretinal disk radius {25, 50, 100} um at heights {20, 50, 100} um; subretinal disk radius 50 um at depth 150 um; sigma 0.3 S/m (0.1-1.0 sensitivity) |
+| Lateral offsets | over soma (0), over dendritic field centroid, over the axon 200 um from the soma |
+| Pulses | cathodic-first biphasic 100 us (primary); 50, 500, 1000, 4000 us; monophasic cathodic/anodic |
+| Threshold | smallest current with V > 0 mV at the distal axon end (propagated spike); geometric bracket + bisection to 3% |
+| Activation site | region of the first compartment crossing 0 mV (AIS / hillock / distal axon / soma / dendrite) |
+| Primary statistics | per-type median, IQR, geometric SD; between/within log-variance ratio; MixedLM of log threshold with type (and dataset) random intercepts |
+| Selectivity | pairwise AUC = P(threshold_a < threshold_b); selective window = fraction of A activated at the 10th percentile of B |
+| Empirical comparison | global scale fitted on ON parasol; KS and QQ slope on the remaining types (Grosberg 2017; Madugula 2022) |
+
 ## Related projects
 
 - `morphology-dependent-stimulation` (uniform-field polarisation over NeuroMorpho populations; this project uses focal electrode fields, active RGC kinetics and typed retinal populations and stays self-contained).
