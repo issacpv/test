@@ -59,11 +59,21 @@ def build_features(long: pd.DataFrame, stays: pd.DataFrame, cfg: FeatureConfig) 
     values : ``<item>_last/mean/min/max`` (NaN when never measured in the window)
     masks  : ``<item>_n, <item>_any, <item>_hrs_since, <item>_n_stat, <item>_n_off``
              plus stay totals ``n_total, n_stat_total, n_off_total, n_distinct``.
+
+    If ``long`` carries ``result_delay_hours`` (charttime to storetime, from ``lab_leak.sql``),
+    measurements collected inside the window but resulted after it are *pending* at prediction
+    time: they are excluded from ``values`` (the clinician could not have seen them) but counted
+    in ``masks`` as ``<item>_pending`` and ``n_pending_total`` (the order itself was visible).
     """
     df = annotate_schedule(long, stays, cfg)
     df = df[(df["t_hours"] >= 0) & (df["t_hours"] <= cfg.window_hours)]
     items = sorted(df["itemid"].unique())
     index = pd.Index(stays["stay_id"].to_numpy(), name="stay_id")
+    pending_counts = None
+    if "result_delay_hours" in df.columns:
+        is_pending = (df["t_hours"] + df["result_delay_hours"].fillna(0)) > cfg.window_hours
+        pending_counts = df[is_pending].groupby(["stay_id", "itemid"]).size()
+        df = df[~is_pending]
 
     g = df.sort_values("t_hours").groupby(["stay_id", "itemid"])
     agg = g["valuenum"].agg(last="last", mean="mean", min="min", max="max")
@@ -82,11 +92,16 @@ def build_features(long: pd.DataFrame, stays: pd.DataFrame, cfg: FeatureConfig) 
         masks[f"{it}_hrs_since"] = np.where(n > 0, cfg.window_hours - c["t_last"].fillna(0).to_numpy(), cfg.window_hours)
         masks[f"{it}_n_stat"] = c["n_stat"].fillna(0).to_numpy()
         masks[f"{it}_n_off"] = c["n_off"].fillna(0).to_numpy()
+        if pending_counts is not None:
+            p = pending_counts.xs(it, level="itemid") if it in pending_counts.index.get_level_values(1) else None
+            masks[f"{it}_pending"] = p.reindex(index).fillna(0).to_numpy() if p is not None else np.zeros(len(index))
     values_df = pd.DataFrame(values, index=index)
     masks_df = pd.DataFrame(masks, index=index)
     tot = df.groupby("stay_id").agg(n_total=("valuenum", "size"), n_stat_total=("is_stat", "sum"),
                                     n_off_total=("off_schedule", "sum"), n_distinct=("itemid", "nunique"))
     masks_df = masks_df.join(tot.reindex(index).fillna(0))
+    if pending_counts is not None:
+        masks_df["n_pending_total"] = pending_counts.groupby("stay_id").sum().reindex(index).fillna(0).to_numpy()
     return values_df, masks_df
 
 

@@ -115,6 +115,23 @@ Follow-ups: correction (inverse filtering with the fitted system) and its valida
 - [ ] ML-impact analyses with the sibling projects' models
 - [ ] Pre-registration (OSF) before decision-impact analyses; manuscript and release of the detector
 
+## Repository layout
+
+```
+README.md                         this document
+requirements.txt                  numpy/scipy/pandas/scikit-learn, wfdb, vitaldb (optional), requests
+data/README.md                    acquisition steps: synthetic records, VitalDB, MIMIC-III waveform + clinical, MIMIC-IV
+scripts/download_data.py          --simulate (records with embedded flushes), VitalDB REST downloader, PhysioNet staging
+src/art_damping/transfer.py       second-order catheter model, Gardner adequacy rules, Windkessel true ABP, synthetic flush
+src/art_damping/flush.py          flush detection; (fn, zeta, release time) identification by model fitting; label propagation
+src/art_damping/sqi.py            beat morphology + spectral damping features; window aggregation; grouped-CV classifier
+src/art_damping/impact.py         NIBP-ABP discrepancy, threshold-crossing enrichment, event-rate ratios, cluster bootstrap
+tests/test_art_damping.py         synthetic tests: SBP over/under-estimation, exact (fn, zeta) recovery, feature separation, impact tables
+```
+
+Analysis outputs (`outputs/`, git-ignored): per-record flush label tables, window feature tables with damping
+class, prevalence tables, detector metrics, and decision-impact tables with bootstrap CIs.
+
 ## Ethics / data-use notes
 
 - MIMIC-III, MIMIC-IV and their waveform databases are PhysioNet credentialed resources: CITI training, signed DUAs, approved encrypted storage; no redistribution; never send credentialed data to third-party LLM APIs or other external services.

@@ -115,6 +115,23 @@ Follow-ups: deep-learning SV with uncertainty; fluid-responsiveness prediction f
 - [ ] Damping/arrhythmia/sampling-rate moderators
 - [ ] Pre-registration (OSF) before MIMIC evaluation; manuscript and public benchmark release
 
+## Repository layout
+
+```
+README.md                          this document
+requirements.txt                   numpy/scipy/pandas/scikit-learn, wfdb, vitaldb (optional), requests
+data/README.md                     acquisition steps for VitalDB (open) and the MIMIC arms (credentialed)
+scripts/download_data.py           VitalDB REST downloader (track filtering, --sample) + PhysioNet staging
+src/pulse_contour/beats.py         Windkessel generator with known SV, slope-sum onset detector, per-beat features
+src/pulse_contour/estimators.py    Liljestrand-Zander, Herd, systolic area, 2-element Windkessel, fitted impedance correction, calibration
+src/pulse_contour/agreement.py     Bland-Altman (repeated measures), percentage error, four-quadrant / polar concordance, cluster bootstrap
+src/pulse_contour/references.py    echo LVOT parsing, d_items lookup for thermodilution CO, VitalDB loader, time alignment
+tests/test_pulse_contour.py        synthetic Windkessel tests (all estimators must track true SV; agreement statistics)
+```
+
+Analysis outputs (`outputs/`, git-ignored): per-case aligned reference/estimate tables, agreement tables per
+estimator x reference x calibration regime x stratum, and figures (Bland-Altman, four-quadrant, polar).
+
 ## Ethics / data-use notes
 
 - MIMIC-III, MIMIC-IV, MIMIC-IV Waveform and MIMIC-IV-ECHO are PhysioNet credentialed resources: CITI training, signed DUAs, approved encrypted storage; no redistribution; credentialed data are never sent to third-party LLM APIs or other external services.

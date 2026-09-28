@@ -44,6 +44,15 @@ def test_features_align_and_totals_consistent():
     if never.any():
         assert V.loc[never, f"{items[0]}_last"].isna().all()
         assert (M.loc[never, f"{items[0]}_hrs_since"] == CFG.window_hours).all()
+    # pending results: collected in the window, resulted after it -> masks only, never values
+    long2 = long.copy()
+    long2["result_delay_hours"] = 0.0
+    late = long2["t_hours"] > 22.0
+    long2.loc[late, "result_delay_hours"] = 5.0
+    V2, M2 = ordering.build_features(long2, stays, CFG)
+    assert "n_pending_total" in M2 and M2["n_pending_total"].sum() == int(late.sum())
+    assert (M2["n_total"] + M2["n_pending_total"]).sum() == M["n_total"].sum()
+    assert V2.count().sum() <= V.count().sum()
 
 
 def test_mask_only_signal_grows_with_ordering_informativeness():

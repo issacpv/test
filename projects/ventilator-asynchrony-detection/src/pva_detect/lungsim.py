@@ -206,6 +206,7 @@ SCENARIOS: dict[str, SimConfig] = {
     "double_triggering": SimConfig(vent=VentSettings(rr_set=12.0, ti=0.6, vt=0.4),
                                    effort=EffortModel(rr_neural=14.0, pmus_amp=12.0, ti_neural=1.4)),
     "reverse_triggering": SimConfig(vent=VentSettings(rr_set=15.0, ti=1.0),
-                                    effort=EffortModel(mode="entrained", pmus_amp=6.0, ti_neural=0.8, entrain_delay_s=0.5)),
+                                    effort=EffortModel(mode="entrained", pmus_amp=6.0, ti_neural=0.8, entrain_delay_s=0.5,
+                                                       entrain_prob=0.6)),
     "auto_triggering": SimConfig(effort=EffortModel(mode="none"), cardiac_osc_lps=0.05),
 }

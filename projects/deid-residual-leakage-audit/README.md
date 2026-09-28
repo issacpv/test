@@ -114,6 +114,23 @@ Follow-ups: apply the protocol to eICU and n2c2 releases; use section-level find
 - [ ] Curator report delivered to PhysioNet; embargo agreed
 - [ ] Pre-registration (OSF); manuscript with aggregate tables only
 
+## Repository layout
+
+```
+README.md                      this document
+requirements.txt               numpy/pandas/scipy only; local NER and de-identification models are optional extras
+data/README.md                 acquisition steps (deid gold corpus, MIMIC-IV-Note, MIMIC-IV, MIMIC-III, n2c2 2014)
+scripts/download_data.py       open corpus download + credentialed staging (env-var credentials)
+src/deid_audit/sections.py     template section splitter; ___ and [** **] placeholder statistics
+src/deid_audit/patterns.py     regex detectors returning category/section/length only (never text)
+src/deid_audit/estimate.py     Wilson rates, Lincoln-Petersen / Chapman capture-recapture, planted-PHI recall, cell suppression
+src/deid_audit/audit.py        per-note count rows, optional offline spaCy NER, group summaries, CLI
+tests/test_deid_audit.py       synthetic fictitious notes exercising every module (no data, no models)
+```
+
+Output artefacts (`outputs/`, git-ignored) are count tables only: one row per note with category counts and
+placeholder statistics, and a summary table of rates per 10,000 notes with confidence intervals.
+
 ## Ethics / data-use notes
 
 - MIMIC-IV-Note, MIMIC-IV and MIMIC-III are PhysioNet credentialed resources: CITI training, signed DUAs, approved encrypted storage, no redistribution.

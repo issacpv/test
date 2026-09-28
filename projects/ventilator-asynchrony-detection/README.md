@@ -111,6 +111,23 @@ Follow-ups: add surrogate-AI as a state variable to `ventilation-policy-offline-
 - [ ] Outcome models with confounding control, negative controls, E-values
 - [ ] Pre-registration (OSF) before outcome analyses; manuscript and simulator release
 
+## Repository layout
+
+```
+README.md                          this document
+requirements.txt                   numpy/scipy/pandas/scikit-learn/statsmodels, duckdb/pyarrow for extraction
+data/README.md                     acquisition steps: simulated corpus, HiRID, eICU-CRD, MIMIC-IV, open waveform candidates
+scripts/download_data.py           --simulate (labelled scenarios), PhysioNet staging with env-var credentials
+src/pva_detect/lungsim.py          lung + ventilator state machine; effort models; labelled breath/effort tables; SCENARIOS
+src/pva_detect/breaths.py          breath segmentation, per-breath features, ineffective-effort / double-trigger rules, event matching
+src/pva_detect/surrogates.py       charted-resolution binning, surrogate features (incl. monitor-minus-ventilator rate), calibration
+src/pva_detect/cohort.py           MIMIC-IV / eICU / HiRID extraction templates, variable lookups, exposure table, logistic association
+tests/test_pva_detect.py           simulator-based tests: synchrony baseline, IE and DT generation + detection, surrogate validity, cohort helpers
+```
+
+Analysis outputs (`outputs/`, git-ignored): detector metrics per dataset, surrogate calibration tables, per-stay
+exposure tables and adjusted association estimates per database.
+
 ## Ethics / data-use notes
 
 - HiRID, eICU-CRD and MIMIC-IV are PhysioNet credentialed resources: CITI training, signed DUAs, approved encrypted storage; no redistribution; credentialed data are never sent to third-party LLM APIs or other external services.

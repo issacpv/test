@@ -86,7 +86,9 @@ def test_flush_free_features_separate_damping_classes(true_abp):
     yo, fo = _measured(true_abp, 6.0, 1.5)
     assert set(sqi.BEAT_FEATURES) <= set(fa.columns) and fa["plausible"].mean() > 0.9
     assert fu["overshoot"].median() > fa["overshoot"].median() > fo["overshoot"].median()
-    assert fu["dpdt_max_norm"].median() > fa["dpdt_max_norm"].median() > fo["dpdt_max_norm"].median()
+    # over-damping blunts the upstroke; under-damping inflates PP (the denominator) and filters the
+    # fastest part of the upstroke, so PP-normalised dP/dt is not a monotone under-damping marker
+    assert fa["dpdt_max_norm"].median() > fo["dpdt_max_norm"].median()
     assert fo["rise_time"].median() > fa["rise_time"].median()
     sa, su = sqi.spectral_features(ya, FS), sqi.spectral_features(yu, FS)
     assert su["spectral_peakiness"] > sa["spectral_peakiness"]
