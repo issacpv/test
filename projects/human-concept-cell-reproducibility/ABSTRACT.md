@@ -1,6 +1,6 @@
 # How much of the concept cell is the criterion? A multiverse and cross-dataset audit of selectivity in open human single-neuron recordings
 
-**Background.** Concept cells, medial temporal lobe (MTL) neurons responding selectively to a specific person, object or place, anchor the dominant single-neuron account of human declarative memory, and reviews build on prevalence figures such as a third of MTL units. Each figure rests on one laboratory's selection statistic, alpha, window, null model and spike sorter. Open NWB datasets on DANDI now allow several published criteria to be applied to the same neurons, yet no study has done so, used a null that preserves slow rate drift and trial blocking, reported cross-validated selectivity, modelled non-independence of units within wires, sessions and patients, or tested whether sorting quality predicts concept-cell status.
+**Background.** Concept cells, medial temporal lobe (MTL) neurons responding selectively to a specific person, object or place, anchor the dominant single-neuron account of human memory, and reviews build on prevalence figures such as a third of MTL units. Each figure rests on one laboratory's selection statistic, alpha, window, null model and spike sorter. Open NWB datasets on DANDI now allow several published criteria to be applied to the same neurons, yet no study has done so, used a null that preserves slow rate drift and trial blocking, reported cross-validated selectivity, modelled non-independence of units within wires, sessions and patients, or tested whether sorting quality predicts concept-cell status.
 
 **Objective.** We will quantify how much reported concept-cell prevalence, selectivity strength and regional distribution depend on the selection criterion, the null model and sorting quality rather than on the brain.
 
@@ -8,4 +8,4 @@
 
 **Expected results.** We expect MTL prevalence in the same dataset to vary more than twofold across criteria; drift-preserving nulls to remove at least 20 percent of nominal detections in blocked designs; cross-validated selectivity to be at least 30 percent smaller than in-sample; the MTL-over-frontal gradient to survive while the hippocampus-amygdala ordering depends on criterion; and selected units to show higher SNR.
 
-**Significance.** The audit delivers calibrated false-positive rates per criterion and a harmonised units table with all criterion flags, turning concept-cell prevalence from a laboratory convention into a reproducible quantity.
+**Significance.** The audit delivers calibrated false-positive rates per criterion and a harmonised units table with all criterion flags, turning concept-cell prevalence into a reproducible quantity.
