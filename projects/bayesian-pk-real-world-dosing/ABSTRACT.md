@@ -1,6 +1,6 @@
 # An Open External-Evaluation Benchmark for Bayesian Vancomycin Forecasting on MIMIC-IV: Model Disagreement, Dosing-Record Provenance, Practice Drift and Subgroup Error
 
-**Background.** AUC-guided precision dosing of vancomycin depends on which published population-pharmacokinetic model a Bayesian tool embeds, and external evaluations show large differences between models. That evidence comes from curated or proprietary datasets; what a hospital tool actually receives is EHR data with mislabelled troughs and missing infusion durations. MIMIC-IV exposes that layer, but existing MIMIC-IV vancomycin studies use raw levels without reconstructing dosing histories, and no two groups evaluate models on the same data.
+**Background.** AUC-guided precision dosing of vancomycin depends on which published population-pharmacokinetic model a Bayesian tool embeds, and external evaluations show large differences between models. That evidence comes from curated or proprietary datasets; what a hospital tool actually receives is EHR data with mislabelled troughs and missing infusion durations. MIMIC-IV exposes that layer; deep-learning level predictors such as DeepTDM (2025) have been validated on it, but no published population-PK model has been evaluated there, and no two groups evaluate models on the same data.
 
 **Objective.** We will build an open, reproducible benchmark of published vancomycin and gentamicin models for Bayesian forecasting on MIMIC-IV and quantify how model choice, dose-record source, practice drift and patient subgroup propagate into AUC24 estimates.
 
@@ -8,4 +8,4 @@
 
 **Expected results.** We expect between-model AUC24 spread above 1.25 in over 30% of courses at the first level, dose-source choice changing AUC24 by more than 10% in at least 15% of courses, model averaging lowering rRMSE with the largest gains in AKI, CRRT and obesity subgroups, a measurable temporal validation gap, and subgroup differences in bias.
 
-**Significance.** Anyone with PhysioNet credentials can rerun the benchmark and add a model, giving the field a shared yardstick for real-world dosing tools.
+**Significance.** Anyone with PhysioNet credentials can rerun the benchmark and add a model, giving the field a shared yardstick for real-world dosing tools that black-box predictors cannot supply.
