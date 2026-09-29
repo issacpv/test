@@ -33,11 +33,11 @@ Every `.py` file compiles and every project's synthetic-data test suite passes (
 
 ## Abstracts
 
-[`ABSTRACTS.md`](ABSTRACTS.md) holds a ~2,500-character structured abstract for each of the 105 publishable projects (also at `projects/<slug>/ABSTRACT.md`).
+[`ABSTRACTS.md`](ABSTRACTS.md) holds a ~2,500-character structured abstract for every project (also at `projects/<slug>/ABSTRACT.md`), each checked against the nearest 2023–2026 papers and rewritten where a claim was already taken.
 
 ## Literature check
 
-`tools/litcheck.py` queries Europe PMC, PubMed, arXiv and Crossref (OpenAlex / Semantic Scholar when keys are set) with curated queries per project, scores papers by key-term coverage and walks the citation neighbourhood. Results: [`litcheck/SUMMARY.md`](litcheck/SUMMARY.md) (all 113 ranked by near-miss risk) and [`litcheck/VERDICTS.md`](litcheck/VERDICTS.md) (deep-read verdicts for the 28 highest-risk projects: 0 closed, 11 narrowed, 17 open). Re-run with `CROSSREF_MAILTO=you@example.org python tools/litcheck.py`.
+`tools/litcheck.py` queries Europe PMC, PubMed, arXiv and Crossref (OpenAlex / Semantic Scholar when keys are set) with curated queries per project, scores papers by key-term coverage and walks the citation neighbourhood. Results: [`litcheck/SUMMARY.md`](litcheck/SUMMARY.md) (all 113 ranked by near-miss risk) and [`litcheck/VERDICTS.md`](litcheck/VERDICTS.md) and [`litcheck/VERDICTS2.md`](litcheck/VERDICTS2.md) (deep-read verdicts for all 113 projects: 0 closed, 31 narrowed with abstracts rewritten, 82 open). Re-run with `CROSSREF_MAILTO=you@example.org python tools/litcheck.py`.
 
 ## Project index
 

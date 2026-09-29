@@ -8,4 +8,4 @@
 
 **Expected results.** We expect calibration-in-the-large shifts outside the in-domain CI in >= 75% of cells while discrimination holds, larger drops for population-tagged cells, Spearman rho >= 0.5 between domain-classifier AUC and loss, subgroup gaps widening in >= 60% of cells, no method beating ERM in more than two modalities, and smaller foundation-model gaps on contaminated cells.
 
-**Significance.** The benchmark makes shift type a first-class variable and gives clinical ML a shared, leakage-safe yardstick.
+**Significance.** The benchmark makes shift type a first-class variable for clinical ML.

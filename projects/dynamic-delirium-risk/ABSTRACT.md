@@ -8,4 +8,4 @@
 
 **Expected results.** We expect the label scheme to shift AUROC of identical features by at least 0.05 and flip the sign of a sedative coefficient; removing sedation-policy features to erase at least 30% of the gain over an admission-only model; benzodiazepines but not dexmedetomidine to raise delirium transition intensities; a prior positive screen to raise assessment odds above 1.5; and the largest external loss in the lowest screening-density tertile of eICU hospitals, with wider calibration gaps by age, sex and race under binary-negative coding.
 
-**Significance.** The study separates delirium risk from knowledge of sedation plans and screening behaviour, yielding lower but transportable discrimination and sedative effects consistent with trials.
+**Significance.** The study separates delirium risk from knowledge of sedation plans and screening behaviour, yielding transportable discrimination.

@@ -8,4 +8,4 @@
 
 **Expected results.** We expect thickness centiles near-uniform on held-out HCP sites (KS < 0.10) but not on OASIS-3 or OpenNeuro sites (KS > 0.15), with FA and MD extreme rates above 15% even between HCP cohorts; diffusion to need at least twice the morphometry budget; rho > 0.9 across references yet kappa < 0.6 for extreme flags; MD counts adding delta-AUC >= 0.03 for CDR >= 0.5 that shrinks when OASIS-3 leaves the reference; and centile ICC >= 0.8 with a standard error of >= 8 centile points.
 
-**Significance.** The audit would tell clinicians and trialists how model- and site-dependent an individual centile is, with released curves and tools.
+**Significance.** The audit would tell clinicians and trialists how model- and site-dependent an individual centile is.
