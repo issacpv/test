@@ -8,4 +8,4 @@
 
 **Expected results.** We expect lab ICC below 0.2 for most regions with significant choice or stimulus decoding; fragile regions to be enriched for fewer than 10 good units per insertion; lab variance to fall by at least half at matched yield; block-prior decoding to be the least reproducible target; and visual-region rank order to be preserved between datasets (Spearman rho above 0.7) while absolute scores differ.
 
-**Significance.** The per-region reproducibility table and yield-corrected brain map give the field a calibrated prior on which brain-wide encoding claims to build on.
+**Significance.** The per-region reproducibility table and yield-corrected brain map give the field a calibrated prior on which encoding claims to build on.

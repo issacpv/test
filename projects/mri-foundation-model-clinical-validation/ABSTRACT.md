@@ -8,4 +8,4 @@
 
 **Expected results.** We expect frozen foundation models to lose at least 0.10 Dice per SD of worsening CJV against at most 0.05 for SynthSeg, Dice drops of at least 0.15 next to stroke lesions and 0.10 on BraTS-Africa relative to adult BraTS, nnU-Net parity at roughly 25–50 lesion and 10–25 anatomy cases, deficits of 0.05–0.10 outside the pretraining age range, and at least 0.10 Dice lost without oracle prompts.
 
-**Significance.** Either outcome is decision-relevant for hospitals, and the released harness, predictions and quality-tertile leaderboard let any future model be added and stratified rather than summarised by one mean Dice.
+**Significance.** Either outcome is decision-relevant for hospitals, and the released harness, predictions and quality-tertile leaderboard let any future model be added and stratified.

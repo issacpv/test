@@ -8,4 +8,4 @@
 
 **Expected results.** We expect median reward-decision agreement below 0.80, at least 25% of participants changing learner status with mean kappa below 0.6, artifact regressors explaining at least 20% of feedback variance under recording-reference pipelines, a stable sign but more than twofold magnitude variation of the learning slope, contingency predicting learning at rho above 0.3, and lower agreement for down- than up-regulation protocols.
 
-**Significance.** The result bounds the dose of contingent reinforcement actually delivered, with a tool any laboratory can run on raw data before reporting a learner rate.
+**Significance.** The result bounds the dose of contingent reinforcement actually delivered, with a tool any laboratory can run on raw data.

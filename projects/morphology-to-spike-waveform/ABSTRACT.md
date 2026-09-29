@@ -8,4 +8,4 @@
 
 **Expected results.** We expect spatial features to be more than 60% morphology-driven and temporal features more than 60% channel-driven, dendritic surface area within 100 µm and stem count to predict footprint with cross-validated R² above 0.5, morphology-explained fractions to rise from NP1.0 to NP Ultra, simulated footprint medians to match opto-tagged medians within 10 µm, and priors to add at least five points of class accuracy.
 
-**Significance.** A per-probe morphology-to-waveform lookup table would give Neuropixels laboratories mechanistic priors for cell-type identification and a plausibility check on sorted units, explaining broad-spiking interneurons from geometry.
+**Significance.** A per-probe morphology-to-waveform lookup table would give Neuropixels laboratories mechanistic priors for cell-type identification and a plausibility check on sorted units.

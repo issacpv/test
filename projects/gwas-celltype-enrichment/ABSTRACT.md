@@ -8,4 +8,4 @@
 
 **Expected results.** We expect thickness and area IDPs to enrich in glutamatergic subclasses and DTI IDPs in the oligodendrocyte lineage; stronger enrichment from homologous-region cells; IDP signal to plateau at subclass or supertype level while schizophrenia gains at cluster level; mouse-human agreement at subclass but not cluster level; and lower estimator concordance for IDPs.
 
-**Significance.** The result is a brain-wide, spatially resolved map of the cellular basis of imaging heritability and a calibrated statement of the resolution imaging genetics can support.
+**Significance.** The result is a brain-wide, spatially resolved map of the cellular basis of imaging heritability and a calibrated statement of the resolution it can support.
