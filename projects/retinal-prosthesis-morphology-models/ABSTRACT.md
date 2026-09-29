@@ -1,6 +1,6 @@
 # Type-Resolved Population Models of Retinal Ganglion Cell Activation by Epiretinal and Subretinal Prostheses: Threshold Distributions, Morphological Determinants and the Selectivity Ceiling
 
-**Background.** Retinal prostheses activate ganglion cells without type selectivity and with unwanted axon-bundle activation. Biophysical models have clarified the roles of the axon initial segment (AIS), soma-to-axon geometry and pulse waveform, but every study has used one to about a dozen morphologies. How much thresholds vary within and between real morphological types, and what that implies for attainable selectivity, is unquantified even though roughly 800 typed mouse reconstructions are public.
+**Background.** Retinal prostheses activate ganglion cells without type selectivity and with unwanted axon-bundle activation. Biophysical models have clarified the roles of the axon initial segment (AIS), soma-to-axon geometry and pulse waveform, but every study has used one to about a dozen morphologies. How much thresholds vary within and between real morphological types, and what that implies for attainable selectivity, is unquantified.
 
 **Objective.** We will derive per-type activation-threshold distributions from hundreds of typed reconstructions under epiretinal and subretinal fields, model their morphological determinants, rank AIS-geometry uncertainty against morphological variability, and estimate a selectivity ceiling validated against ex vivo multi-electrode threshold data.
 

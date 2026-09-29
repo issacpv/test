@@ -8,4 +8,4 @@
 
 **Expected results.** We expect record-wise minus patient-wise inflation above 0.15 F1 for CNN and foundation-model families and below 0.10 for the spectral baseline, scorer rank correlations below 0.8 on at least one cohort, harmonisation halving the Siena drop but not the Helsinki drop, log-MMD correlating above 0.6 with loss, fine-tuned foundation models reducing but not removing the drop, and re-centering helping on adult targets while raising neonatal false alarms.
 
-**Significance.** The result is a fixed-split, fixed-scorer cross-dataset leaderboard that any detector can enter, and evidence about which reported gains reflect memorised patient identity rather than seizure detection.
+**Significance.** The result is a fixed-split, fixed-scorer cross-dataset leaderboard that any detector can enter, and evidence about which reported gains reflect memorised patient identity.
