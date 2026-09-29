@@ -4,6 +4,7 @@ Submission-ready structured abstracts (~2,500 characters each) for all 113 proje
 
 
 
+
 ## Neuroimaging: structural MRI, aging & dementia
 
 ### Where the Correction Was Calibrated Changes the Answer: A Transportability Audit of Brain-Age Delta, Bias Correction and Harmonisation Against Longitudinal Decline in OASIS-3
@@ -116,7 +117,7 @@ Submission-ready structured abstracts (~2,500 characters each) for all 113 proje
 
 **Expected results.** We expect pooled models without sex to show the largest error gap (0.3 to 0.8 years) and, with uncorrected volumes, a spurious positive delta shift of 0.5 to 1.5 years in women reproduced by the head-size-only simulation; stratified models to equalise error at a cost of 0.2 to 0.5 years MAE, lower ICC and worse transport; and no strategy improving delta-outcome links by over 10%.
 
-**Significance.** The audit and simulation show when reported sex differences in brain age are artefacts.
+**Significance.** The audit shows when reported sex differences in brain age are artefacts.
 
 ### Do Growing White-Matter Hyperintensities Amplify Amyloid's Effect on Cognitive Decline? A Time-Varying, Additive-Scale and Segmentation-Robust Test in OASIS-3 with ADNI Replication
 

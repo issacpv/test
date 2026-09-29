@@ -8,4 +8,4 @@
 
 **Expected results.** We expect pooled models without sex to show the largest error gap (0.3 to 0.8 years) and, with uncorrected volumes, a spurious positive delta shift of 0.5 to 1.5 years in women reproduced by the head-size-only simulation; stratified models to equalise error at a cost of 0.2 to 0.5 years MAE, lower ICC and worse transport; and no strategy improving delta-outcome links by over 10%.
 
-**Significance.** The audit and simulation show when reported sex differences in brain age are artefacts.
+**Significance.** The audit shows when reported sex differences in brain age are artefacts.
