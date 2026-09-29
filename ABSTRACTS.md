@@ -3,6 +3,7 @@
 Submission-ready structured abstracts (~2,500 characters each) for all 113 projects. Every abstract was checked against the nearest 2023–2026 papers ([litcheck/VERDICTS.md](litcheck/VERDICTS.md) and [litcheck/VERDICTS2.md](litcheck/VERDICTS2.md)); the 31 marked NARROWED were rewritten to claim only what remains open. Eight projects (`cuffless-bp-pregnancy`, `ventilator-asynchrony-detection`, `meg-microstate-heritability`, `deid-residual-leakage-audit`, `digital-health-rct-ipd-reanalysis`, `spike-sorter-multiverse`, `unified-biomedical-shift-benchmark`, `effect-size-inflation-openneuro`) carry data-access, power or scope risks that their abstracts state explicitly.
 
 
+
 ## Neuroimaging: structural MRI, aging & dementia
 
 ### Where the Correction Was Calibrated Changes the Answer: A Transportability Audit of Brain-Age Delta, Bias Correction and Harmonisation Against Longitudinal Decline in OASIS-3
@@ -113,7 +114,7 @@ Submission-ready structured abstracts (~2,500 characters each) for all 113 proje
 
 **Methods.** FreeSurfer tables with Euler-number quality control will be assembled from IXI, Cam-CAN, HCP Young Adult (with retest), HCP-Aging, OASIS-3 (about 2,800 sessions), SALD and DLBS, about 5,600 subjects in all. Head-size corrections are fitted in training folds. Ridge, kernel ridge and gradient-boosting estimators use ten-fold family-grouped cross-validation over ten repeats, with age-bias correction and ComBat fitted within folds and whole cohorts held out for transport. Outcomes are MAE by sex with cluster bootstrap, delta regressed on sex and age, partial outcome associations in cohort random-intercept mixed models, ICC on repeat scans and transport MAE by sex; a pooled model trained on a random half separates strategy from sample size. A simulation with configurable sex differences in head size and ageing slope shows which strategy recovers the true delta-outcome coefficient without a spurious sex effect. Nulls are age-permuted models and null-simulated cohorts; two contrasts are pre-registered.
 
-**Expected results.** We expect pooled models without sex to show the largest error gap (0.3 to 0.8 years) and, with uncorrected volumes, a spurious positive delta shift of 0.5 to 1.5 years in women reproduced by the head-size-only simulation; stratified models to equalise error at a cost of 0.2 to 0.5 years MAE, lower ICC and worse transport; and no strategy to improve delta-outcome associations by over 10%.
+**Expected results.** We expect pooled models without sex to show the largest error gap (0.3 to 0.8 years) and, with uncorrected volumes, a spurious positive delta shift of 0.5 to 1.5 years in women reproduced by the head-size-only simulation; stratified models to equalise error at a cost of 0.2 to 0.5 years MAE, lower ICC and worse transport; and no strategy improving delta-outcome links by over 10%.
 
 **Significance.** The audit and simulation show when reported sex differences in brain age are artefacts.
 
