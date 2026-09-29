@@ -1,6 +1,6 @@
 # Who Does Automated MRI Quality Control Exclude? A Corpus-Wide Audit of Exclusion by Age, Sex and Clinical Group Across OpenNeuro
 
-**Background.** Automated QC with MRIQC metrics and motion thresholds is routine, yet children, older adults and clinical populations move more, and motion biases morphometry. Single-cohort analyses in ABCD, UK Biobank and ABIDE-II show exclusions structured by race, income, age and diagnosis, and two have swept thresholds within one cohort, but all rely on fMRI motion, cannot separate protocol from participant effects, and none asks whether structural metrics such as CNR and CJV track normal biology rather than artefact.
+**Background.** Automated QC with MRIQC metrics and motion thresholds is routine, yet children, older adults and clinical populations move more, and motion biases morphometry. Single-cohort analyses in ABCD, UK Biobank and ABIDE-II show exclusions structured by race, income, age and diagnosis, and two swept thresholds within one cohort, but all rely on fMRI motion, cannot separate protocol from participant effects, and none asks whether structural metrics such as CNR and CJV track normal biology rather than artefact.
 
 **Objective.** We will estimate each participant's probability of surviving standard QC as a function of age, sex and diagnostic group with dataset as a random effect across hundreds of OpenNeuro datasets, quantify how much of the age structure reflects metric–biology coupling, measure exclusion elasticity to threshold choice, and report the representational shift QC imposes on the corpus.
 
@@ -8,4 +8,4 @@
 
 **Expected results.** We expect a U-shaped age curve with exclusion odds at least twofold higher at ages 8 and 80 than at 25, within-dataset odds ratios of 1.3–2.0 for neurological and 1.2–1.5 for psychiatric groups, modestly higher male odds, at least 30% of the structural age effect removed by biology adjustment, threshold-driven swings above 20 percentage points for older and neurological groups, and a QC-passed corpus with 10–25% fewer participants under 10 and over 65.
 
-**Significance.** A scannability calculator, biology-adjusted thresholds and a citable representation report would make QC-driven selection a quantified and correctable step.
+**Significance.** A scannability calculator, biology-adjusted thresholds and a representation report would make QC-driven selection a quantified, correctable step.
